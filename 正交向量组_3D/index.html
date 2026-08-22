@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正交向量组 · 3D 垂直判定</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:300px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .vec{margin-bottom:6px;border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+  .vec-head{display:flex;justify-content:space-between;margin-bottom:2px}
+  .vec-name{font-size:13px;font-weight:600}
+  .vec .row{display:grid;grid-template-columns:22px 1fr 32px;align-items:center;gap:5px;margin:2px 0}
+  .vec .row label{font-size:11px;color:var(--mut);text-align:right}
+  .vec input[type=range]{width:100%;accent-color:var(--accent)}
+  .vec .num{font-family:Consolas,monospace;font-size:11px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:14px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .c1{background:#f87171}.c2{background:#4ade80}.c3{background:#60a5fa}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 | 正交 ⇔ 内积 = 0 ⇔ 垂直（夹角 90°）</div>
+
+<div class="panel">
+  <h1>正交向量组</h1>
+  <div class="sub">同济第七版 · 第5章 —— 两两正交的向量组：内积 α·β = 0</div>
+  <div id="vecs"></div>
+  <div class="result">
+    <div class="big" id="dot">α₁·α₂ = 0 ✓ 正交</div>
+    <div class="det" id="detail">两两内积</div>
+  </div>
+  <div class="presets">
+    <button data-p="0">正交基（两两垂直）</button>
+    <button data-p="1">非正交</button>
+    <button data-p="2">含零向量</button>
+  </div>
+  <div class="hint">💡 内积 α·β = x₁y₁+x₂y₂+x₃y₃。正交向量组两两内积为 0。性质：① 正交向量组必线性无关；② 非零正交向量组可单位化成正交单位向量组（规范正交基）。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot c1"></span>α₁</div>
+  <div><span class="dot c2"></span>α₂</div>
+  <div><span class="dot c3"></span>α₃</div>
+  <div style="color:var(--mut)">虚线 = 垂直投影示意</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 4, 8); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+const axes = new THREE.Group();
+function ax(dir,color){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),dir.clone().multiplyScalar(3.5)]);axes.add(new THREE.Line(g,new THREE.LineBasicMaterial({color})));}
+ax(new THREE.Vector3(1,0,0),0xf87171);ax(new THREE.Vector3(0,1,0),0x4ade80);ax(new THREE.Vector3(0,0,1),0x60a5fa);
+scene.add(axes);
+
+const cols=[0xf87171,0x4ade80,0x60a5fa],names=['α₁','α₂','α₃'];
+const arrows=[],dots=[];
+for(let i=0;i<3;i++){
+  const a=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(0,0,0),1,cols[i],0.25,0.15);
+  scene.add(a);arrows.push(a);
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.07,16,16),new THREE.MeshBasicMaterial({color:cols[i]}));
+  scene.add(d);dots.push(d);
+}
+let V=[[1,0,0],[0,1,0],[0,0,1]];
+function renderSliders(){
+  const vEl=document.getElementById('vecs');vEl.innerHTML='';
+  for(let i=0;i<3;i++){
+    const box=document.createElement('div');box.className='vec';
+    box.innerHTML='<div class="vec-head"><span class="vec-name" style="color:#'+cols[i].toString(16).padStart(6,"0")+'">'+names[i]+'</span></div>';
+    ['x','y','z'].forEach((c,ci)=>{
+      const row=document.createElement('div');row.className='row';
+      row.innerHTML='<label>'+c+'</label><input type="range" min="-3" max="3" step="0.1" value="'+V[i][ci]+'"><span class="num">'+V[i][ci]+'</span>';
+      const range=row.querySelector('input');
+      range.addEventListener('input',()=>{V[i][ci]=parseFloat(range.value);row.querySelector('.num').textContent=V[i][ci].toFixed(1);update();});
+      box.appendChild(row);
+    });
+    vEl.appendChild(box);
+  }
+}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function isZero(v){return Math.abs(v[0])<1e-6&&Math.abs(v[1])<1e-6&&Math.abs(v[2])<1e-6;}
+function update(){
+  const el=document.getElementById('dot'),de=document.getElementById('detail');
+  const d12=dot(V[0],V[1]),d13=dot(V[0],V[2]),d23=dot(V[1],V[2]);
+  const zeros=V.filter(isZero).length;
+  const ortho=Math.abs(d12)<1e-6&&Math.abs(d13)<1e-6&&Math.abs(d23)<1e-6;
+  if(zeros>0){el.textContent='含零向量（不参与正交讨论）';el.className='big';}
+  else if(ortho){el.textContent='两两正交 ✓（内积全为0）';el.className='big ok';}
+  else {el.textContent='非正交（存在内积≠0）';el.className='big bad';}
+  de.textContent='α₁·α₂='+d12.toFixed(2)+' | α₁·α₃='+d13.toFixed(2)+' | α₂·α₃='+d23.toFixed(2)+(ortho?' → 正交向量组必线性无关':'');
+  for(let i=0;i<3;i++){
+    const v=new THREE.Vector3(V[i][0],V[i][1],V[i][2]),len=v.length();
+    if(len<0.02){arrows[i].visible=false;dots[i].visible=false;continue;}
+    arrows[i].visible=true;dots[i].visible=true;
+    arrows[i].setDirection(v.clone().normalize());
+    arrows[i].setLength(len,Math.min(0.3,len*0.18),Math.min(0.18,len*0.1));
+    dots[i].position.copy(v);
+  }
+}
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button');if(!b)return;
+  const presets={
+    0:[[1,0,0],[0,1,0],[0,0,1]],
+    1:[[1,0,0],[1,1,0],[0,1,1]],
+    2:[[1,0,0],[0,0,0],[0,1,1]]
+  };
+  V=presets[b.dataset.p].map(r=>r.slice());
+  const ranges=document.querySelectorAll('#vecs input[type=range]');let idx=0;
+  for(let i=0;i<3;i++)for(let c=0;c<3;c++){ranges[idx].value=V[i][c];ranges[idx].parentElement.querySelector('.num').textContent=V[i][c].toFixed(1);idx++;}
+  update();
+});
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+renderSliders();update();animate();
+</script>
+</body>
+</html>

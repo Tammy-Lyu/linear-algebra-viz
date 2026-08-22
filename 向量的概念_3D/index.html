@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>向量的概念 · 3D 向量与分量</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:300px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .sliders{margin:8px 0}
+  .sliders .row{display:grid;grid-template-columns:24px 1fr 40px;align-items:center;gap:8px;margin:4px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:14px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | n维向量 = n个有序数（3D 显示前三维）· 有向线段：长度+方向</div>
+
+<div class="panel">
+  <h1>向量的概念</h1>
+  <div class="sub">同济第七版 · 第4章 —— 拖动分量，观察向量的几何形象（有向线段）</div>
+  <div class="sliders">
+    <div class="row"><label>x</label><input type="range" id="x" min="-3" max="3" step="0.1" value="2"><span class="num" id="xn">2</span></div>
+    <div class="row"><label>y</label><input type="range" id="y" min="-3" max="3" step="0.1" value="1"><span class="num" id="yn">1</span></div>
+    <div class="row"><label>z</label><input type="range" id="z" min="-3" max="3" step="0.1" value="1.5"><span class="num" id="zn">1.5</span></div>
+  </div>
+  <div class="result">
+    <div class="big" id="vec">a = (2, 1, 1.5)</div>
+    <div class="det" id="len">|a| = 2.69</div>
+  </div>
+  <div class="hint">💡 向量是"有大小和方向的量"。大小 = 长度 |a| = √(x²+y²+z²)；方向 = 从起点指向终点。分量 aᵢ 是向量在坐标轴上的投影。零向量 (0,0,0) 长度为 0，方向不定。交通应用：飞行器速度向量、船舶航向向量。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#f87171"></span>向量 a（有向线段）</div>
+  <div><span class="dot" style="background:#fbbf24"></span>分量投影线</div>
+  <div><span class="dot" style="background:#60a5fa"></span>终点</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(5, 4, 7); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+const axes = new THREE.Group();
+function ax(dir,color){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),dir.clone().multiplyScalar(3.5)]);axes.add(new THREE.Line(g,new THREE.LineBasicMaterial({color})));}
+ax(new THREE.Vector3(1,0,0),0xf87171);ax(new THREE.Vector3(0,1,0),0x4ade80);ax(new THREE.Vector3(0,0,1),0x60a5fa);
+scene.add(axes);
+
+const arrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xf87171, 0.3, 0.18);
+scene.add(arrow);
+const endDot = new THREE.Mesh(new THREE.SphereGeometry(0.09,16,16), new THREE.MeshBasicMaterial({color:0x60a5fa}));
+scene.add(endDot);
+// 分量虚线
+const dashMat = new THREE.LineDashedMaterial({ color: 0xfbbf24, dashSize: 0.12, gapSize: 0.08 });
+const dashGeo = new THREE.BufferGeometry();
+const dashLine = new THREE.Line(dashGeo, dashMat);
+scene.add(dashLine);
+
+function update(){
+  const x=parseFloat(document.getElementById('x').value),y=parseFloat(document.getElementById('y').value),z=parseFloat(document.getElementById('z').value);
+  ['x','y','z'].forEach((id,i)=>{document.getElementById(id+'n').textContent=[x,y,z][i].toFixed(1);});
+  document.getElementById('vec').textContent='a = ('+[x,y,z].map(v=>v.toFixed(1)).join(', ')+')';
+  const l=Math.sqrt(x*x+y*y+z*z);
+  document.getElementById('len').textContent='|a| = '+l.toFixed(2)+'  | 单位方向 = ('+[x,y,z].map(v=>(l>1e-9?v/l:0).toFixed(2)).join(', ')+')';
+  const v=new THREE.Vector3(x,y,z);
+  arrow.setDirection(v.clone().normalize());
+  arrow.setLength(l, Math.min(0.35,l*0.15), Math.min(0.2,l*0.09));
+  endDot.position.copy(v);
+  // 分量投影：终点到坐标平面的垂线
+  const pts=[];
+  pts.push(new THREE.Vector3(x,y,z), new THREE.Vector3(x,y,0));
+  pts.push(new THREE.Vector3(x,y,0), new THREE.Vector3(x,0,0));
+  dashGeo.setFromPoints(pts);
+  dashLine.computeLineDistances();
+}
+['x','y','z'].forEach(id=>document.getElementById(id).addEventListener('input',update));
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+update();animate();
+</script>
+</body>
+</html>

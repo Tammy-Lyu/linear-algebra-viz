@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>正交矩阵 · 3D 正交变换</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:310px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .sliders{margin:8px 0}
+  .sliders .row{display:grid;grid-template-columns:70px 1fr 44px;align-items:center;gap:8px;margin:4px 0}
+  .sliders .row label{font-size:12px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:14px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 | 正交矩阵 Q：QᵀQ=E ⇔ 列向量两两正交且为单位向量 ⇔ 变换保长度、保夹角（旋转/镜像）</div>
+
+<div class="panel">
+  <h1>正交矩阵</h1>
+  <div class="sub">同济第七版 · 第5章 —— 单位球经 Q 变换后仍是单位球（长度不变）</div>
+
+  <div class="sliders">
+    <div class="row"><label>绕 z 旋转角</label><input type="range" id="ang" min="0" max="360" step="5" value="45"><span class="num" id="angn">45°</span></div>
+    <div class="row"><label>向量 x₁ 方向</label><input type="range" id="ax" min="-3" max="3" step="0.1" value="1"><span class="num" id="axn">1</span></div>
+    <div class="row"><label>向量 x₁ 方向</label><input type="range" id="ay" min="-3" max="3" step="0.1" value="1"><span class="num" id="ayn">1</span></div>
+  </div>
+
+  <div class="result">
+    <div class="big" id="check">QᵀQ = E ✓ 正交矩阵</div>
+    <div class="det" id="detail">|Qx| = |x|（保长度）</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">旋转（det=1）</button>
+    <button data-p="1">镜像（det=-1）</button>
+    <button data-p="2">非正交（拉伸）</button>
+  </div>
+  <div class="hint">💡 正交矩阵：QᵀQ=E（列向量是规范正交基）。性质：|det Q|=1；Q⁻¹=Qᵀ；正交变换保持向量长度、夹角、内积。交通应用：飞行器姿态旋转矩阵、导航坐标变换（之前问答库"姿态解算为什么用正交矩阵"）。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#f87171"></span>原向量 x</div>
+  <div><span class="dot" style="background:#fbbf24"></span>变换后 Qx</div>
+  <div style="color:var(--mut)">线框球 = 单位球（变换前后不变）</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 4, 7); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+
+// 单位球（线框，变换参照）
+const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({color:0x94a3b8,wireframe:true,transparent:true,opacity:0.5}));
+scene.add(sphere);
+// 变换后的椭球（非正交时变形）
+const ellip = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.25,side:THREE.DoubleSide,depthWrite:false}));
+scene.add(ellip);
+
+const xArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xf87171, 0.25, 0.15);
+scene.add(xArrow);
+const qArrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xfbbf24, 0.25, 0.15);
+scene.add(qArrow);
+
+function setArrow(arrow,v,color){
+  const vec=new THREE.Vector3(v[0],v[1],v[2]),len=vec.length();
+  if(len<0.02){arrow.visible=false;return;}
+  arrow.visible=true;arrow.setDirection(vec.clone().normalize());
+  arrow.setLength(len,Math.min(0.3,len*0.15),Math.min(0.18,len*0.09));
+  if(color)arrow.setColor(new THREE.Color(color));
+}
+function matVec(M,v){return [M[0]*v[0]+M[1]*v[1]+M[2]*v[2],M[3]*v[0]+M[4]*v[1]+M[5]*v[2],M[6]*v[0]+M[7]*v[1]+M[8]*v[2]];}
+function rotZ(deg){const r=deg*Math.PI/180,c=Math.cos(r),s=Math.sin(r);return [c,-s,0,s,c,0,0,0,1];}
+function mirrorXZ(){return [1,0,0,0,-1,0,0,0,1];} // 关于 xz 平面镜像
+function stretch(){return [2,0,0,0,1,0,0,0,0.5];}
+function update(){
+  const ang=parseFloat(document.getElementById('ang').value);
+  const ax=parseFloat(document.getElementById('ax').value),ay=parseFloat(document.getElementById('ay').value);
+  document.getElementById('angn').textContent=ang+'°';
+  document.getElementById('axn').textContent=ax.toFixed(1);
+  document.getElementById('ayn').textContent=ay.toFixed(1);
+  const x=[ax,ay,0];
+  // 当前模式矩阵
+  const mode=document.querySelector('.presets button.on')?document.querySelector('.presets button.on').dataset.p:'0';
+  let Q;
+  if(mode==='0')Q=rotZ(ang);
+  else if(mode==='1')Q=mirrorXZ();
+  else Q=stretch();
+  const qx=matVec(Q,x);
+  setArrow(xArrow,x);setArrow(qArrow,qx);
+  // 正交性检查
+  const QTQ=[Q[0]*Q[0]+Q[3]*Q[3]+Q[6]*Q[6],Q[0]*Q[1]+Q[3]*Q[4]+Q[6]*Q[7],Q[1]*Q[0]+Q[4]*Q[3]+Q[7]*Q[6],Q[1]*Q[1]+Q[4]*Q[4]+Q[7]*Q[7]];
+  const isOrtho=Math.abs(QTQ[0]-1)<1e-6&&Math.abs(QTQ[3]-1)<1e-6&&Math.abs(QTQ[1])<1e-6&&Math.abs(QTQ[2])<1e-6;
+  const el=document.getElementById('check'),de=document.getElementById('detail');
+  if(isOrtho){
+    el.textContent='QᵀQ = E ✓ 正交矩阵';el.className='big ok';
+    de.textContent='|Qx| = |x| = '+Math.sqrt(ax*ax+ay*ay).toFixed(2)+'（保长度）| det Q| = 1';
+  }else{
+    el.textContent='非正交矩阵（QᵀQ≠E）';el.className='big bad';
+    de.textContent='|Qx|='+Math.sqrt(qx[0]*qx[0]+qx[1]*qx[1]+qx[2]*qx[2]).toFixed(2)+' ≠ |x|='+Math.sqrt(ax*ax+ay*ay).toFixed(2)+'（长度改变）';
+  }
+  // 椭球：正交时不变，非正交时变形
+  const s=Math.sqrt(QTQ[0]);
+  ellip.visible=!isOrtho;
+  if(!isOrtho){
+    const sx=Math.sqrt(QTQ[0]),sy=Math.sqrt(QTQ[3]);
+    ellip.scale.set(sx,sy,1);
+  }
+}
+document.getElementById('ang').addEventListener('input',update);
+document.getElementById('ax').addEventListener('input',update);
+document.getElementById('ay').addEventListener('input',update);
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('.presets button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');update();
+});
+document.querySelector('.presets button').classList.add('on');
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+update();animate();
+</script>
+</body>
+</html>

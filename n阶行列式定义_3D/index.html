@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n阶行列式的定义 · 排列与逆序数</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:330px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:15px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .terms{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;line-height:1.9;max-height:220px;overflow-y:auto}
+  .terms .pos{color:var(--green)}.terms .neg{color:var(--red)}
+  .terms .hl{background:rgba(245,158,11,.15);border-radius:3px}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 | n阶行列式 = n! 项代数和（每项为不同行不同列元素乘积 × 逆序数符号）</div>
+
+<div class="panel">
+  <h1>n阶行列式的定义</h1>
+  <div class="sub">同济第七版 · 第1章 —— 排列的逆序数决定每一项的符号</div>
+
+  <div class="presets" id="presets">
+    <button data-n="2">n=2</button>
+    <button data-n="3">n=3</button>
+    <button data-n="4">n=4</button>
+  </div>
+
+  <div class="result">
+    <div class="big" id="detval">|A| = a₁₁a₂₂ − a₁₂a₂₁</div>
+    <div class="det" id="detail">n=2：2! = 2 项</div>
+  </div>
+
+  <div class="terms" id="terms"></div>
+
+  <div class="hint">💡 行列式定义：|A| = Σ (−1)^τ(p) · a₁ₚ₁·a₂ₚ₂·...·aₙₚₙ，其中 p 是 (1,2,...,n) 的一个排列，τ(p) 是它的逆序数（奇排列取负，偶排列取正）。每一项取不同行不同列，恰好 n! 项。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#f87171"></span>排列小球（序号）</div>
+  <div><span class="dot" style="background:#fbbf24"></span>逆序对连线（红色=逆序）</div>
+  <div style="color:var(--mut)">3D 展示当前排列</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(5, 3, 6); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+
+const ballGroup = new THREE.Group(); scene.add(ballGroup);
+const lineGroup = new THREE.Group(); scene.add(lineGroup);
+let balls = [], lines = [];
+
+function clearGroup(g){while(g.children.length){g.remove(g.children[0]);}}
+function renderPermutation(perm){
+  clearGroup(ballGroup); clearGroup(lineGroup);
+  balls=[]; lines=[];
+  const n=perm.length;
+  perm.forEach((val,i)=>{
+    const geo=new THREE.SphereGeometry(0.28,20,20);
+    const mat=new THREE.MeshBasicMaterial({color:0xf87171});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.position.set(i-(n-1)/2, val-(n-1)/2-1, 0);
+    ballGroup.add(mesh);
+    // 序号标签用 sprite 替代（简化：用小方块）
+    balls.push(mesh);
+  });
+  // 逆序对连线
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){
+    if(perm[i]>perm[j]){
+      const p1=new THREE.Vector3(i-(n-1)/2,perm[i]-(n-1)/2-1,0);
+      const p2=new THREE.Vector3(j-(n-1)/2,perm[j]-(n-1)/2-1,0);
+      const g=new THREE.BufferGeometry().setFromPoints([p1,p2]);
+      const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfbbf24,transparent:true,opacity:0.7}));
+      lineGroup.add(l);
+      lines.push(l);
+    }
+  }
+}
+
+function inversionCount(perm){
+  let c=0; for(let i=0;i<perm.length;i++)for(let j=i+1;j<perm.length;j++)if(perm[i]>perm[j])c++;
+  return c;
+}
+function* permutations(arr){
+  if(arr.length<=1){yield arr;return;}
+  for(let i=0;i<arr.length;i++){
+    const rest=arr.slice(0,i).concat(arr.slice(i+1));
+    for(const p of permutations(rest)) yield [arr[i]].concat(p);
+  }
+}
+function calc(n){
+  const nums=[]; for(let i=1;i<=n;i++)nums.push(i);
+  const perms=[...permutations(nums)];
+  let html='', total=0;
+  const terms=[];
+  perms.forEach(p=>{
+    const t=inversionCount(p);
+    const sign=(t%2===0)?1:-1;
+    // 项：a_{1,p1}...a_{n,pn}
+    const termStr=p.map((v,i)=>'a<sub>'+(i+1)+''+v+'</sub>').join('·');
+    const cls=sign>0?'pos':'neg';
+    html+='<div class="'+cls+'">'+termStr+' — 排列('+p.join(',')+') 逆序数τ='+t+' → '+((sign>0)?'+':'−')+'</div>';
+    total+=sign;
+  });
+  document.getElementById('terms').innerHTML=html;
+  document.getElementById('detval').textContent='n='+n+'：|A| = '+n+'!='+(perms.length)+' 项代数和';
+  document.getElementById('detail').textContent='偶排列取+（'+perms.filter(p=>inversionCount(p)%2===0).length+'项），奇排列取−（'+perms.filter(p=>inversionCount(p)%2===1).length+'项）';
+  // 3D 展示第一个排列（默认 1,2,..,n 顺序）
+  renderPermutation(nums);
+}
+document.querySelectorAll('#presets button').forEach(b=>b.addEventListener('click',()=>calc(parseInt(b.dataset.n))));
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+calc(3);animate();
+</script>
+</body>
+</html>
