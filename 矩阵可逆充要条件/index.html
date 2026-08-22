@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩阵可逆的充要条件</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>矩阵可逆的充要条件</h1>
+  <div class="sub">同济第七版 · 第2章 —— 四个等价条件：det≠0 / 满秩 / 零解 / 线性无关</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">方阵 A</div>
+    <div class="matrix-input" id="mA" style="grid-template-columns:repeat(2,54px)">
+      <input data-i="0,0" value="2"><input data-i="0,1" value="1">
+      <input data-i="1,0" value="1"><input data-i="1,1" value="3">
+    </div>
+    <div class="result">
+      <div class="big" id="verdict">可逆</div>
+      <div class="det" id="detail">det(A) = 5 ≠ 0 → 可逆</div>
+    </div>
+    <div class="presets">
+      <button data-p="0">可逆</button>
+      <button data-p="1">奇异（不可逆）</button>
+      <button data-p="2">单位矩阵</button>
+    </div>
+    <div class="tip">💡 方阵 A 可逆的充要条件：① det(A)≠0；② R(A)=n（满秩）；③ Ax=0 只有零解；④ A 的列（行）向量线性无关。四者等价！</div>
+  </div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 矩阵可逆充要条件</div>
+</div>
+<script>
+
+let A=[[2,1],[1,3]], size=2;
+function det2(M){return M[0][0]*M[1][1]-M[0][1]*M[1][0];}
+function det3(M){return M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);}
+function rank(M){
+  const X=M.map(r=>r.slice()); let rk=0;
+  for(let c=0;c<X[0].length&&rk<X.length;c++){let piv=-1;for(let r=rk;r<X.length;r++)if(Math.abs(X[r][c])>1e-9){piv=r;break;}if(piv<0)continue;[X[rk],X[piv]]=[X[piv],X[rk]];for(let r=rk+1;r<X.length;r++){const f=X[r][c]/X[rk][c];for(let k=c;k<X[0].length;k++)X[r][k]-=f*X[rk][k];}rk++;}
+  return rk;
+}
+function renderInputs(){const mi=document.getElementById('mA');mi.style.gridTemplateColumns='repeat('+size+',54px)';mi.innerHTML='';for(let i=0;i<size;i++)for(let j=0;j<size;j++){const inp=document.createElement('input');inp.dataset.i=i+','+j;inp.value=A[i][j];inp.addEventListener('input',()=>{const[ii,jj]=inp.dataset.i.split(',').map(Number);A[ii][jj]=parseFloat(inp.value)||0;calc();});mi.appendChild(inp);}}
+function calc(){
+  const d=size===2?det2(A):det3(A), r=rank(A);
+  const ok=Math.abs(d)>1e-9;
+  const el=document.getElementById('verdict'), de=document.getElementById('detail');
+  el.textContent=ok?'可逆':'不可逆（奇异）'; el.className=ok?'ok':'bad';
+  de.innerHTML='det(A)='+d.toFixed(2)+(ok?' ≠ 0':' = 0')+' | R(A)='+r+'='+size+(ok?'（满秩）':'（缺秩）')+'<br>Ax=0 '+(ok?'只有零解':'有非零解')+' | 列向量'+(ok?'线性无关':'线性相关')+' → '+(ok?'四条件全满足 ✓':'四条件全不满足 ✗');
+}
+document.querySelectorAll('.presets button').forEach(b=>b.addEventListener('click',()=>{
+  const p=b.dataset.p;
+  if(p==='0'){size=2;A=[[2,1],[1,3]];}
+  else if(p==='1'){size=2;A=[[1,2],[2,4]];}
+  else {size=2;A=[[1,0],[0,1]];}
+  renderInputs();calc();
+}));
+renderInputs();calc();
+</script>
+</body>
+</html>

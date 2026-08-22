@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩阵秩的求法 · 行阶梯形数非零行</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>矩阵秩的求法 · 行阶梯形数非零行</h1>
+  <div class="sub">同济第七版 · 第3章 —— 逐步消元化行阶梯形，数非零行得秩</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">矩阵 A（3×4）</div>
+    <div class="matrix-input" id="mA" style="grid-template-columns:repeat(4,54px)">
+      <input data-i="0,0" value="1"><input data-i="0,1" value="2"><input data-i="0,2" value="3"><input data-i="0,3" value="1">
+      <input data-i="1,0" value="2"><input data-i="1,1" value="4"><input data-i="1,2" value="6"><input data-i="1,3" value="2">
+      <input data-i="2,0" value="1"><input data-i="2,1" value="1"><input data-i="2,2" value="1"><input data-i="2,3" value="0">
+    </div>
+    <button id="stepBtn" style="margin:8px 0;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer">下一步消元</button>
+    <button id="resetBtn" style="margin:8px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 16px;cursor:pointer">重置</button>
+    <div class="result">
+      <div class="big" id="state">点击"下一步"开始求秩</div>
+      <div class="det" id="detail">秩 = 行阶梯形中非零行的行数</div>
+    </div>
+    <div class="tip">💡 求秩方法：初等行变换化行阶梯形 → 数非零行。第 1、2 行成比例（1:2），消元后第 2 行变全零 → R(A)=2。</div>
+  </div>
+  <div class="card"><div class="steps" id="steps">初始矩阵</div></div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 矩阵秩的求法</div>
+</div>
+<script>
+
+let A0=[[1,2,3,1],[2,4,6,2],[1,1,1,0]];
+let A=A0.map(r=>r.slice()), steps=[];
+function renderMatrix(M){const mi=document.getElementById('mA');mi.innerHTML='';for(let i=0;i<3;i++)for(let j=0;j<4;j++){const inp=document.createElement('input');inp.value=Math.round(M[i][j]*100)/100;inp.readOnly=true;mi.appendChild(inp);}}
+function showSteps(){document.getElementById('steps').innerHTML=steps.map(s=>'<div class="s">'+s+'</div>').join('')||'<div class="s">初始矩阵</div>';}
+function next(){
+  const rows=A.length, cols=A[0].length;
+  let pivotRow=0, did=false;
+  for(let c=0;c<cols&&pivotRow<rows;c++){
+    let piv=-1;for(let r=pivotRow;r<rows;r++)if(Math.abs(A[r][c])>1e-9){piv=r;break;}
+    if(piv<0)continue;
+    if(piv!==pivotRow){[A[pivotRow],A[piv]]=[A[piv],A[pivotRow]];steps.push('交换 r'+(pivotRow+1)+'↔r'+(piv+1));}
+    for(let r=pivotRow+1;r<rows;r++){if(Math.abs(A[r][c])>1e-9){const f=A[r][c]/A[pivotRow][c];for(let k=c;k<cols;k++)A[r][k]-=f*A[pivotRow][k];A[r][c]=0;steps.push('r'+(r+1)+'←r'+(r+1)+'−'+Math.round(f*100)/100+'×r'+(pivotRow+1));}}
+    pivotRow++; did=true; break;
+  }
+  if(!did){
+    let rank=0;for(let i=0;i<rows;i++){let nz=false;for(let j=0;j<cols;j++)if(Math.abs(A[i][j])>1e-9){nz=true;break;}if(nz)rank++;}
+    document.getElementById('state').textContent='R(A) = '+rank;document.getElementById('state').className='big ok';
+    document.getElementById('detail').textContent='行阶梯形非零行 = '+rank+' 行 → 秩 = '+rank;
+    showSteps();return;
+  }
+  renderMatrix(A);showSteps();
+  document.getElementById('state').textContent='消元中…';
+}
+document.getElementById('stepBtn').addEventListener('click',next);
+document.getElementById('resetBtn').addEventListener('click',()=>{A=A0.map(r=>r.slice());steps.length=0;renderMatrix(A);showSteps();document.getElementById('state').textContent='点击"下一步"开始求秩';document.getElementById('state').className='big';document.getElementById('detail').textContent='秩 = 行阶梯形中非零行的行数';});
+renderMatrix(A);
+</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>对换变换 · 交换两行</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>对换变换 · 交换两行</h1>
+  <div class="sub">同济第七版 · 第3章 —— 点击交换行，观察矩阵变化（行列式变号）</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">矩阵（点击"交换第 i 行与第 j 行"）</div>
+    <div class="matrix-input" id="mA" style="grid-template-columns:repeat(3,54px)">
+      <input data-i="0,0" value="1"><input data-i="0,1" value="2"><input data-i="0,2" value="3">
+      <input data-i="1,0" value="4"><input data-i="1,1" value="5"><input data-i="1,2" value="6">
+      <input data-i="2,0" value="7"><input data-i="2,1" value="8"><input data-i="2,2" value="9">
+    </div>
+    <div class="presets" id="swapBtns">
+      <button data-s="0,1">交换第1、2行</button>
+      <button data-s="0,2">交换第1、3行</button>
+      <button data-s="1,2">交换第2、3行</button>
+      <button data-r="1">重置</button>
+    </div>
+    <div class="result">
+      <div class="big">r<sub>i</sub> ↔ r<sub>j</sub>：行交换</div>
+      <div class="det" id="detail">行列式变号（若为方阵）；矩阵等价性不变</div>
+    </div>
+    <div class="tip">💡 对换变换（交换两行）改变行列式的符号；对矩阵等价、秩无影响。初等变换之一。</div>
+  </div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 对换变换</div>
+</div>
+<script>
+
+let A=[[1,2,3],[4,5,6],[7,8,9]];
+function render(){document.querySelectorAll('#mA input').forEach(inp=>{const[i,j]=inp.dataset.i.split(',').map(Number);inp.value=A[i][j];});}
+document.querySelectorAll('#mA input').forEach(inp=>inp.addEventListener('input',()=>{const[i,j]=inp.dataset.i.split(',').map(Number);A[i][j]=parseFloat(inp.value)||0;}));
+document.getElementById('swapBtns').addEventListener('click',function(e){
+  const b=e.target.closest('button'); if(!b)return;
+  if(b.dataset.r){A=[[1,2,3],[4,5,6],[7,8,9]];render();document.getElementById('detail').textContent='已重置';return;}
+  const [i,j]=b.dataset.s.split(',').map(Number);
+  [A[i],A[j]]=[A[j],A[i]];
+  render();
+  document.getElementById('detail').textContent='交换第'+(i+1)+'行与第'+(j+1)+'行 → r'+(i+1)+' ↔ r'+(j+1);
+});
+render();
+</script>
+</body>
+</html>

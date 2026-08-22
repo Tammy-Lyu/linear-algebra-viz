@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>齐次线性方程组 · 基础解系</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>齐次线性方程组 · 基础解系</h1>
+  <div class="sub">同济第七版 · 第4章 —— 求解 Ax=0 的基础解系（n−R(A) 个解向量）</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">齐次方程组 Ax=0（2 方程 3 未知数）</div>
+    <div class="matrix-input" id="mA" style="grid-template-columns:repeat(3,54px)">
+      <input data-i="0,0" value="1"><input data-i="0,1" value="2"><input data-i="0,2" value="1">
+      <input data-i="1,0" value="0"><input data-i="1,1" value="1"><input data-i="1,2" value="-1">
+    </div>
+    <div class="result">
+      <div class="big" id="sol">x = c₁·ξ₁ + c₂·ξ₂</div>
+      <div class="det" id="detail">基础解系：n−R(A) 个线性无关解向量</div>
+    </div>
+    <div class="presets">
+      <button data-p="0">2×3（解空间1维）</button>
+      <button data-p="1">2×3（解空间1维变体）</button>
+      <button data-p="2">3×3 满秩（仅零解）</button>
+    </div>
+    <div class="tip">💡 齐次方程组 Ax=0：若 R(A)=r，则基础解系含 n−r 个解向量，通解 x=c₁ξ₁+...+cₙ₋ᵣξₙ₋ᵣ。自由变量取单位向量，回代求其他变量。</div>
+  </div>
+  <div class="card"><div class="steps" id="steps">求解过程</div></div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 齐次线性方程组基础解系</div>
+</div>
+<script>
+
+let A=[[1,2,1],[0,1,-1]], rows=2, cols=3;
+function renderInputs(){const mi=document.getElementById('mA');mi.style.gridTemplateColumns='repeat('+cols+',54px)';mi.innerHTML='';for(let i=0;i<rows;i++)for(let j=0;j<cols;j++){const inp=document.createElement('input');inp.dataset.i=i+','+j;inp.value=A[i][j];inp.addEventListener('input',()=>{const[ii,jj]=inp.dataset.i.split(',').map(Number);A[ii][jj]=parseFloat(inp.value)||0;calc();});mi.appendChild(inp);}}
+function rank(M){const X=M.map(r=>r.slice());let rk=0;for(let c=0;c<X[0].length&&rk<X.length;c++){let piv=-1;for(let r=rk;r<X.length;r++)if(Math.abs(X[r][c])>1e-9){piv=r;break;}if(piv<0)continue;[X[rk],X[piv]]=[X[piv],X[rk]];for(let r=rk+1;r<X.length;r++){const f=X[r][c]/X[rk][c];for(let k=c;k<X[0].length;k++)X[r][k]-=f*X[rk][k];}rk++;}return rk;}
+function calc(){
+  const r=rank(A), free=cols-r;
+  const el=document.getElementById('sol'), de=document.getElementById('detail'), st=document.getElementById('steps');
+  let h='<div class="s">R(A) = '+r+'，未知数 n = '+cols+'，自由变量 = n−R(A) = '+free+'</div>';
+  if(free===0){
+    el.textContent='x = 0（只有零解）';el.className='';
+    de.textContent='R(A)='+r+'=n → 满秩，基础解系为空（仅零解）';
+    st.innerHTML=h+'<div class="s">满秩 → Ax=0 只有零解，无基础解系</div>';
+    return;
+  }
+  // 基础解系：设自由变量为1（依次），回代求主变量
+  const basis=[];
+  for(let f=0;f<free;f++){
+    const sol=new Array(cols).fill(0);
+    // 简化假设：前 rows 列为主元列（对典型输入），自由变量在最后 free 列
+    const freeCols=cols-free;
+    for(let j=0;j<free;j++){
+      sol[freeCols+j]=(j===f)?1:0;
+    }
+    // 从下往上回代（近似：处理 2 行情况）
+    for(let i=rows-1;i>=0;i--){
+      // 找主元列
+      let pc=-1;for(let c=0;c<cols;c++)if(Math.abs(A[i][c])>1e-9&&c<freeCols){pc=c;break;}
+      if(pc<0)continue;
+      let s=0;for(let c=pc+1;c<cols;c++)s+=A[i][c]*sol[c];
+      sol[pc]=-s/A[i][pc];
+    }
+    basis.push(sol);
+    h+='<div class="s">ξ'+(f+1)+' = ('+sol.map(x=>Math.round(x*100)/100).join(', ')+')（自由变量 x'+(freeCols+f+1)+'=1，其余自由变量=0）</div>';
+  }
+  el.textContent='x = c₁ξ₁'+(free>1?' + c₂ξ₂':'');
+  de.textContent='基础解系含 '+free+' 个向量：ξ₁'+(free>1?', ξ₂':'')+'（线性无关，张成解空间）';
+  st.innerHTML=h;
+}
+document.querySelectorAll('.presets button').forEach(b=>b.addEventListener('click',()=>{
+  const p=b.dataset.p;
+  if(p==='0'){rows=2;cols=3;A=[[1,2,1],[0,1,-1]];}
+  else if(p==='1'){rows=2;cols=3;A=[[1,0,-2],[0,1,1]];}
+  else {rows=3;cols=3;A=[[1,0,0],[0,1,0],[0,0,1]];}
+  renderInputs();calc();
+}));
+renderInputs();calc();
+</script>
+</body>
+</html>

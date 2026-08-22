@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩阵秩的性质 · 不等式一览</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>矩阵秩的性质 · 不等式一览</h1>
+  <div class="sub">同济第七版 · 第3章 —— 调维度，实时看秩的不等式边界</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">输入两个矩阵 A、B 的维度，查看秩的不等式</div>
+    <div class="sliders">
+      <div class="row"><label>m（A 的行）</label><input type="range" id="m" min="1" max="5" step="1" value="3"><span class="num" id="mv">3</span></div>
+      <div class="row"><label>n（A 的列 / B 的行）</label><input type="range" id="n" min="1" max="5" step="1" value="3"><span class="num" id="nv">3</span></div>
+      <div class="row"><label>l（B 的列）</label><input type="range" id="l" min="1" max="5" step="1" value="2"><span class="num" id="lv">2</span></div>
+    </div>
+    <div class="result">
+      <div class="big" id="ineq">R(AB) ≤ min{R(A), R(B)}</div>
+      <div class="det" id="detail">秩的性质一览</div>
+    </div>
+    <div class="tip">💡 秩的核心性质：① 0≤R(A)≤min(m,n)；② R(Aᵀ)=R(A)；③ R(kA)=R(A)(k≠0)；④ R(A+B)≤R(A)+R(B)；⑤ R(AB)≤min{R(A),R(B)}；⑥ 若 AB=O 则 R(A)+R(B)≤n。</div>
+  </div>
+  <div class="card"><div class="steps" id="props"></div></div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 矩阵秩的性质</div>
+</div>
+<script>
+
+function calc(){
+  const m=parseInt(document.getElementById('m').value),n=parseInt(document.getElementById('n').value),l=parseInt(document.getElementById('l').value);
+  ['mv','nv','lv'].forEach((id,i)=>{document.getElementById(id).textContent=[m,n,l][i];});
+  const maxRankA=Math.min(m,n), maxRankB=Math.min(n,l), maxRankAB=Math.min(maxRankA,maxRankB);
+  let h='<div class="s">① 0 ≤ R(A) ≤ min(m,n) = min('+m+','+n+') = <b>'+maxRankA+'</b></div>';
+  h+='<div class="s">② 0 ≤ R(B) ≤ min(n,l) = min('+n+','+l+') = <b>'+maxRankB+'</b></div>';
+  h+='<div class="s">③ R(Aᵀ)=R(A)（行秩=列秩）</div>';
+  h+='<div class="s">④ R(A+B) ≤ R(A)+R(B)</div>';
+  h+='<div class="s">⑤ R(AB) ≤ min{R(A),R(B)} ≤ min('+maxRankA+','+maxRankB+') = <b>'+maxRankAB+'</b>（A 是 m×n，B 是 n×l → AB 是 '+m+'×'+l+'）</div>';
+  h+='<div class="s">⑥ 若 AB=O（A:m×n, B:n×l），则 R(A)+R(B) ≤ n = <b>'+n+'</b></div>';
+  document.getElementById('props').innerHTML=h;
+  document.getElementById('ineq').textContent='R(AB) ≤ min{R(A), R(B)} ≤ '+maxRankAB;
+}
+document.getElementById('m').addEventListener('input',calc);document.getElementById('n').addEventListener('input',calc);document.getElementById('l').addEventListener('input',calc);
+calc();
+</script>
+</body>
+</html>

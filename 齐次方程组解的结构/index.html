@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>齐次线性方程组 · 解的结构</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>齐次线性方程组 · 解的结构</h1>
+  <div class="sub">同济第七版 · 第4章 —— 解空间维度：直线/平面/点的几何意义</div>
+
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">齐次方程组解的结构</div>
+    <div class="result">
+      <div class="big">通解 = 基础解系的线性组合</div>
+      <div class="det" id="detail">x = c₁ξ₁ + c₂ξ₂ + ... + cₙ₋ᵣξₙ₋ᵣ</div>
+    </div>
+    <div class="presets">
+      <button data-p="0">解空间 1 维（直线）</button>
+      <button data-p="1">解空间 2 维（平面）</button>
+      <button data-p="2">仅零解（点）</button>
+    </div>
+    <div class="tip">💡 齐次解的结构：① 解向量的线性组合仍是解（线性性质）；② 基础解系是解空间的一组基；③ 通解是所有解向量的线性组合，张成一个 n−r 维子空间（解空间）。</div>
+  </div>
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">解空间几何示意</div>
+    <div class="steps" id="viz"></div>
+  </div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 齐次线性方程组解的结构</div>
+</div>
+<script>
+
+function calc(p){
+  const v=document.getElementById('viz');
+  if(p==='0'){
+    document.getElementById('detail').textContent='x=c₁ξ₁，一条直线（1维）';
+    v.innerHTML='<div class="s">解空间 = span{ξ₁} = {c₁ξ₁ | c₁∈ℝ} → 一条<b>直线</b>（1 维子空间）</div>';
+  } else if(p==='1'){
+    document.getElementById('detail').textContent='x=c₁ξ₁+c₂ξ₂，一张平面（2维）';
+    v.innerHTML='<div class="s">解空间 = span{ξ₁,ξ₂} = {c₁ξ₁+c₂ξ₂} → 一张<b>平面</b>（2 维子空间）</div>';
+  } else {
+    document.getElementById('detail').textContent='x=0，一个点（0维）';
+    v.innerHTML='<div class="s">满秩 → 解空间 = {0} → 一个<b>点</b>（原点，0 维子空间）</div>';
+  }
+}
+document.querySelectorAll('.presets button').forEach(b=>b.addEventListener('click',()=>calc(b.dataset.p)));
+calc('1');
+</script>
+</body>
+</html>
