@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>特征值与特征向量 · 线性变换的拉伸方向</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:300px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .mat-input{display:grid;grid-template-columns:repeat(3,60px);gap:6px;justify-content:center;margin:10px 0}
+  .mat-input input{width:100%;background:#0b1220;border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:6px;text-align:center;font-family:Consolas,monospace;font-size:14px}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:6px}
+  .result .big{font-size:15px;font-weight:700;margin-bottom:4px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .v1{background:#f87171}.v2{background:#4ade80}.v3{background:#60a5fa}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 矩阵变换把单位球拉成椭球——拉伸方向 = 特征向量</div>
+
+<div class="panel">
+  <h1>特征值与特征向量</h1>
+  <div class="sub">同济第七版 · 第5章 —— 输入 3×3 矩阵，观察单位球经 A 变换后的椭球：长/短轴方向即特征向量，伸缩倍数即特征值</div>
+
+  <div class="mat-input" id="matInput">
+    <input data-i="0" data-j="0" value="3"><input data-i="0" data-j="1" value="0"><input data-i="0" data-j="2" value="0">
+    <input data-i="1" data-j="0" value="0"><input data-i="1" data-j="1" value="2"><input data-i="1" data-j="2" value="0">
+    <input data-i="2" data-j="0" value="0"><input data-i="2" data-j="1" value="0"><input data-i="2" data-j="2" value="1">
+  </div>
+
+  <div class="result">
+    <div class="big" id="vals">λ₁=3, λ₂=2, λ₃=1</div>
+    <div class="det" id="detail">对称矩阵 → 特征向量正交 → 单位球变椭球，轴长 = 特征值</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">对角阵（轴拉伸）</button>
+    <button data-p="1">均匀缩放</button>
+    <button data-p="2">含负特征值</button>
+    <button data-p="3">非对称（旋转+拉伸）</button>
+    <button data-p="4">奇异（压成平面）</button>
+  </div>
+  <div class="hint">💡 A v = λ v：特征向量 v 方向不变，只被伸缩 λ 倍。特征值 |λ|&gt;1 拉伸，|λ|&lt;1 压缩，λ=0 压扁（降秩）</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot v1"></span>特征向量 e₁ (λ₁)</div>
+  <div><span class="dot v2"></span>特征向量 e₂ (λ₂)</div>
+  <div><span class="dot v3"></span>特征向量 e₃ (λ₃)</div>
+  <div style="color:var(--mut)">实线 = 原单位球；半透明 = 变换后的椭球</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(5, 4, 7); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(5,8,6); scene.add(dl);
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+
+// 原单位球（线框）
+const sphereWire = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshBasicMaterial({ color: 0x94a3b8, wireframe: true, transparent: true, opacity: 0.6 }));
+scene.add(sphereWire);
+
+// 变换后的椭球（用 Matrix4 缩放）
+const ellipsoid = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 32, 24),
+  new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false })
+);
+scene.add(ellipsoid);
+
+// 特征向量箭头（在椭球轴上）
+const ecols = [0xf87171, 0x4ade80, 0x60a5fa];
+const eArrows = [];
+for(let i=0;i<3;i++){
+  const a = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, ecols[i], 0.18, 0.1);
+  scene.add(a); eArrows.push(a);
+}
+
+// 数值算法：3x3 对称矩阵特征值（雅可比旋转）
+function eigenSym3(M){
+  const A = M.map(r=>r.slice());
+  const V = [[1,0,0],[0,1,0],[0,0,1]];
+  for(let iter=0; iter<50; iter++){
+    // 找最大非对角元
+    let p=0,q=1;
+    for(let i=0;i<3;i++)for(let j=i+1;j<3;j++) if(Math.abs(A[i][j])>Math.abs(A[p][q])){p=i;q=j;}
+    if(Math.abs(A[p][q])<1e-10) break;
+    const theta = 0.5*Math.atan2(2*A[p][q], A[q][q]-A[p][p]);
+    const c = Math.cos(theta), s = Math.sin(theta);
+    // 旋转 A
+    for(let k=0;k<3;k++){
+      const akp=A[k][p], akq=A[k][q];
+      A[k][p]=c*akp-s*akq; A[k][q]=s*akp+c*akq;
+    }
+    for(let k=0;k<3;k++){
+      const apk=A[p][k], aqk=A[q][k];
+      A[p][k]=c*apk-s*aqk; A[q][k]=s*apk+c*aqk;
+    }
+    // 累计 V
+    for(let k=0;k<3;k++){
+      const vkp=V[k][p], vkq=V[k][q];
+      V[k][p]=c*vkp-s*vkq; V[k][q]=s*vkp+c*vkq;
+    }
+  }
+  const vals = [A[0][0], A[1][1], A[2][2]];
+  return { vals, vecs: V };
+}
+
+// 一般矩阵 SVD 近似（用 A^T A 的特征分解 → 奇异向量近似特征方向，足够教学展示）
+function eigenInfo(M){
+  // 对对称矩阵用雅可比；非对称用 A^T A（右奇异向量）+ 符号校正
+  const sym = Math.abs(M[0][1]-M[1][0])<1e-9 && Math.abs(M[0][2]-M[2][0])<1e-9 && Math.abs(M[1][2]-M[2][1])<1e-9;
+  if(sym) return eigenSym3(M);
+  // 非对称：求 A^T A 特征分解
+  const AtA = [[0,0,0],[0,0,0],[0,0,0]];
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++) for(let k=0;k<3;k++) AtA[i][j]+=M[k][i]*M[k][j];
+  const { vals, vecs } = eigenSym3(AtA);
+  return { vals: vals.map(Math.sqrt), vecs };
+}
+
+function update(){
+  // 读取矩阵
+  const M = [[0,0,0],[0,0,0],[0,0,0]];
+  document.querySelectorAll('#matInput input').forEach(inp=>{
+    M[parseInt(inp.dataset.i)][parseInt(inp.dataset.j)] = parseFloat(inp.value)||0;
+  });
+  // 特征分解
+  const { vals, vecs } = eigenInfo(M);
+  const sorted = vals.map((v,i)=>({ v, i })).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  const sigmas = sorted.map(s=>Math.abs(s.v));
+  // 显示
+  const vEl = document.getElementById('vals');
+  vEl.textContent = 'λ₁='+fmt(vals[0])+', λ₂='+fmt(vals[1])+', λ₃='+fmt(vals[2]);
+  const det = M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+  const dEl = document.getElementById('detail');
+  if(Math.abs(det)<1e-9) dEl.textContent = 'det(A)=0 → 矩阵奇异，单位球被压扁成平面/直线（有零特征值）';
+  else if(vals.every(v=>Math.abs(v-1)<0.05)) dEl.textContent = '特征值全≈1 → 近似恒等变换（若非对角则含旋转）';
+  else dEl.textContent = '对称 → 特征向量正交，椭球轴长 = |λ|；非对称 → 存在旋转+拉伸（方向为 AᵀA 特征向量）';
+  // 椭球缩放
+  ellipsoid.scale.set(Math.max(sigmas[0],0.01), Math.max(sigmas[1],0.01), Math.max(sigmas[2],0.01));
+  // 特征向量箭头（按排序后对应）
+  for(let k=0;k<3;k++){
+    const { v, i } = sorted[k];
+    const dir = new THREE.Vector3(vecs[0][i], vecs[1][i], vecs[2][i]).normalize();
+    const len = Math.abs(v);
+    eArrows[k].visible = len>0.001;
+    if(len>0.001){
+      eArrows[k].setDirection(dir);
+      eArrows[k].setLength(len, 0.18, 0.1);
+      eArrows[k].setColor(new THREE.Color(ecols[k]));
+    }
+  }
+}
+function fmt(x){ x = Math.abs(x)<1e-9?0:x; return (Math.round(x*100)/100).toFixed(1); }
+
+// 输入监听
+document.querySelectorAll('#matInput input').forEach(inp=>{
+  inp.addEventListener('input', update);
+});
+
+const presets = {
+  0: [[3,0,0],[0,2,0],[0,0,1]],      // 对角
+  1: [[2,0,0],[0,2,0],[0,0,2]],      // 均匀
+  2: [[3,0,0],[0,-2,0],[0,0,1]],     // 负特征值
+  3: [[1.5,0.8,0],[0,1.5,0.6],[0,0,1.2]], // 上三角（旋转感）
+  4: [[2,0,0],[0,1,0],[0,0,0]],      // 奇异
+};
+document.querySelector('.presets').addEventListener('click', function(e){
+  const b = e.target.closest('button'); if(!b) return;
+  const M = presets[b.dataset.p];
+  document.querySelectorAll('#matInput input').forEach(inp=>{
+    inp.value = M[parseInt(inp.dataset.i)][parseInt(inp.dataset.j)];
+  });
+  update();
+});
+
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+window.addEventListener('resize', ()=>{ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+update(); animate();
+</script>
+</body>
+</html>

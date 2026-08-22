@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>线性方程组解的几何意义 · 三平面的交</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:310px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .eq{margin-bottom:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:Consolas,monospace;font-size:13px;background:#0b1220}
+  .eq .coef{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;margin-bottom:4px}
+  .eq .coef input{width:100%;background:#1e293b;border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:4px;text-align:center;font-family:Consolas,monospace}
+  .eq .coef span{font-size:11px;color:var(--mut)}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:16px;font-weight:700;margin-bottom:4px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .p1{background:rgba(239,68,68,.7)}.p2{background:rgba(74,222,128,.7)}.p3{background:rgba(96,165,250,.7)}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .c-green{color:var(--green)}.c-red{color:var(--red)}.c-amber{color:var(--amber)}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 三元一次方程组 = 三个平面的交</div>
+
+<div class="panel">
+  <h1>线性方程组解的几何意义</h1>
+  <div class="sub">同济第七版 · 第3章 —— 每个方程是一个平面，解 = 三平面的公共点集</div>
+
+  <div class="eq" id="eq1">平面 ①：<span class="coef"><input data-eq="0" data-c="0" value="1"><span>x</span><input data-eq="0" data-c="1" value="0"><span>y</span><input data-eq="0" data-c="2" value="0"><span>z</span><span>= 1</span></span></div>
+  <div class="eq" id="eq2">平面 ②：<span class="coef"><input data-eq="1" data-c="0" value="0"><span>x</span><input data-eq="1" data-c="1" value="1"><span>y</span><input data-eq="1" data-c="2" value="0"><span>z</span><span>= 2</span></span></div>
+  <div class="eq" id="eq3">平面 ③：<span class="coef"><input data-eq="2" data-c="0" value="1"><span>x</span><input data-eq="2" data-c="1" value="1"><span>y</span><input data-eq="2" data-c="2" value="0"><span>z</span><span>= 3</span></span></div>
+
+  <div class="result">
+    <div class="big" id="verdict">唯一解</div>
+    <div class="det" id="detail">三平面交于一点 (1, 2, 0)</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">唯一解（交于一点）</button>
+    <button data-p="1">无解（两平面平行）</button>
+    <button data-p="2">无解（三面两两交线平行）</button>
+    <button data-p="3">无穷解（交于一直线）</button>
+    <button data-p="4">无穷解（两面重合）</button>
+  </div>
+  <div class="hint">💡 系数矩阵的秩 R(A) 与增广矩阵秩 R(A|b) 决定解的情况：R(A)=R(A|b)=3 唯一解；=2 交于直线；R(A)&lt;R(A|b) 无解</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot p1"></span>平面 ① (红)</div>
+  <div><span class="dot p2"></span>平面 ② (绿)</div>
+  <div><span class="dot p3"></span>平面 ③ (蓝)</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(7, 5, 9); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(10, 10, 0x334155, 0x1e293b));
+// 坐标轴
+const axes = new THREE.Group();
+function ax(dir, color){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), dir.clone().multiplyScalar(5)]); axes.add(new THREE.Line(g, new THREE.LineBasicMaterial({color}))); }
+ax(new THREE.Vector3(1,0,0), 0xf87171); ax(new THREE.Vector3(0,1,0), 0x4ade80); ax(new THREE.Vector3(0,0,1), 0x60a5fa);
+scene.add(axes);
+
+// 三个平面（每个用大四边形 + 半透明材质）
+const planes = [];
+const planeMats = [0xef4444, 0x4ade80, 0x60a5fa];
+for(let i=0;i<3;i++){
+  const geo = new THREE.PlaneGeometry(10, 10);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: planeMats[i], transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+  scene.add(mesh);
+  planes.push(mesh);
+}
+// 交点小球
+const pt = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 20), new THREE.MeshBasicMaterial({ color: 0xfbbf24 }));
+scene.add(pt);
+
+// 交线（直线情况）
+const lineMat = new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 2 });
+let lineObj = null;
+function setLine(p1, p2){
+  if(lineObj){ scene.remove(lineObj); lineObj.geometry.dispose(); }
+  if(!p1 || !p2) return;
+  const g = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+  lineObj = new THREE.Line(g, lineMat);
+  scene.add(lineObj);
+}
+
+// 平面方程: a*x + b*y + c*z = d → 法向 (a,b,c)
+function makePlane(i, a, b, c, d){
+  const n = new THREE.Vector3(a, b, c);
+  const len = n.length();
+  if(len < 1e-9){ planes[i].visible = false; return; }
+  planes[i].visible = true;
+  n.normalize();
+  planes[i].lookAt(n);
+  const dist = d / len;
+  planes[i].position.copy(n.clone().multiplyScalar(dist));
+}
+
+// 解 3x3 线性方程组（高斯）
+function solve3(M, b){
+  const A = M.map((r,i)=>r.slice().concat([b[i]]));
+  for(let i=0;i<3;i++){
+    let piv=i; while(piv<3 && Math.abs(A[piv][i])<1e-9) piv++;
+    if(piv===3) return null;
+    [A[i],A[piv]]=[A[piv],A[i]];
+    for(let r=i+1;r<3;r++){
+      const f=A[r][i]/A[i][i];
+      for(let k=i;k<4;k++) A[r][k]-=f*A[i][k];
+    }
+  }
+  const x=[0,0,0];
+  for(let i=2;i>=0;i--){ x[i]=(A[i][3]-A[i][i+1]*x[i+1]-A[i][i+2]*x[i+2])/A[i][i]; }
+  return x;
+}
+// 两平面交线方向 = 法向叉积
+function planeLineDir(n1, n2){
+  return new THREE.Vector3().crossVectors(new THREE.Vector3(...n1), new THREE.Vector3(...n2));
+}
+
+// 当前方程
+let EQ = [
+  [1,0,0,1],   // x=1
+  [0,1,0,2],   // y=2
+  [1,1,0,3],   // x+y=3
+];
+
+function update(){
+  // 渲染平面
+  for(let i=0;i<3;i++) makePlane(i, EQ[i][0], EQ[i][1], EQ[i][2], EQ[i][3]);
+  const M = EQ.map(r=>[r[0],r[1],r[2]]);
+  const b = EQ.map(r=>r[3]);
+  const x = solve3(M, b);
+  const RA = rankOf(M);
+  const Rb = rankOf(M.map((r,i)=>[...r, b[i]]));
+
+  const vEl = document.getElementById('verdict');
+  const dEl = document.getElementById('detail');
+  if(x !== null){
+    pt.visible = true; pt.position.set(x[0], x[1], x[2]);
+    setLine(null, null);
+    vEl.textContent = '唯一解';
+    vEl.className = 'big c-green';
+    dEl.textContent = 'R(A)=R(A|b)=3 → 三平面交于一点 (' + x.map(v=>v.toFixed(2)).join(', ') + ')';
+  } else if (RA < Rb){
+    pt.visible = false;
+    // 无解：判断是否两平面平行
+    const p12 = planeLineDir([EQ[0][0],EQ[0][1],EQ[0][2]],[EQ[1][0],EQ[1][1],EQ[1][2]]);
+    const p13 = planeLineDir([EQ[0][0],EQ[0][1],EQ[0][2]],[EQ[2][0],EQ[2][1],EQ[2][2]]);
+    const p23 = planeLineDir([EQ[1][0],EQ[1][1],EQ[1][2]],[EQ[2][0],EQ[2][1],EQ[2][2]]);
+    if(p12.length()<1e-6 && p13.length()<1e-6){
+      vEl.textContent = '无解（平面平行）'; vEl.className='big c-red';
+      dEl.textContent = '三平面平行（或两两平行）→ 无公共点';
+    } else {
+      vEl.textContent = '无解'; vEl.className='big c-red';
+      dEl.textContent = 'R(A)='+RA+' < R(A|b)='+Rb+' → 增广矩阵秩更大 → 无解（如两平面平行，或交线平行）';
+      setLine(null,null);
+    }
+  } else {
+    // 无穷解：交于直线 或 平面
+    pt.visible = false;
+    vEl.textContent = '无穷多解'; vEl.className='big c-amber';
+    dEl.textContent = 'R(A)=R(A|b)='+RA+' < 3 → 三平面交于一条直线（或重合为同一平面）';
+    // 显示交线：任取两非平行平面
+    const n = [EQ[0],EQ[1],EQ[2]];
+    let shown=false;
+    for(let i=0;i<3 && !shown;i++)for(let j=i+1;j<3 && !shown;j++){
+      const d = planeLineDir([n[i][0],n[i][1],n[i][2]],[n[j][0],n[j][1],n[j][2]]);
+      if(d.length()>1e-6){
+        const p1 = new THREE.Vector3(-6,-6,-6), p2 = new THREE.Vector3(6,6,6);
+        setLine(p1.multiplyScalar(0.4), p2.multiplyScalar(0.4));
+        shown=true;
+      }
+    }
+  }
+}
+
+function rankOf(M){
+  const A = M.map(r=>r.slice());
+  let rank=0;
+  for(let c=0;c<A[0].length && rank<A.length;c++){
+    let piv=-1;
+    for(let r=rank;r<A.length;r++) if(Math.abs(A[r][c])>1e-9){ piv=r; break; }
+    if(piv<0) continue;
+    [A[rank],A[piv]]=[A[piv],A[rank]];
+    for(let r=rank+1;r<A.length;r++){
+      const f=A[r][c]/A[rank][c];
+      for(let k=c;k<A[0].length;k++) A[r][k]-=f*A[rank][k];
+    }
+    rank++;
+  }
+  return rank;
+}
+
+// 输入监听
+document.querySelectorAll('.eq input').forEach(inp=>{
+  inp.addEventListener('input', function(){
+    const eq = parseInt(inp.dataset.eq), c = parseInt(inp.dataset.c);
+    EQ[eq][c] = parseFloat(inp.value) || 0;
+    update();
+  });
+});
+
+const presets = {
+  0: [[1,0,0,1],[0,1,0,2],[1,1,1,3]],      // 交于一点 (1,2,0)
+  1: [[1,0,0,1],[1,0,0,3],[0,1,0,2]],      // 平面1、2平行
+  2: [[1,1,0,1],[1,-1,0,2],[1,0,0,3]],     // 三面交线两两平行（类三角形截面）
+  3: [[1,0,0,1],[0,1,0,2],[1,1,0,3]],      // x+y=3 与前两面交线
+  4: [[1,1,0,3],[2,2,0,6],[0,1,0,2]],      // 两面重合
+};
+document.querySelector('.presets').addEventListener('click', function(e){
+  const b = e.target.closest('button'); if(!b) return;
+  EQ = presets[b.dataset.p].map(r=>r.slice());
+  document.querySelectorAll('.eq input').forEach(inp=>{
+    const eq = parseInt(inp.dataset.eq), c = parseInt(inp.dataset.c);
+    inp.value = EQ[eq][c];
+  });
+  update();
+});
+
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+window.addEventListener('resize', ()=>{ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+update(); animate();
+</script>
+</body>
+</html>

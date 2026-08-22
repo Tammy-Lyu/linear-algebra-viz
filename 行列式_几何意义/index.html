@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三阶行列式的几何意义 · 平行六面体体积</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:300px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .vec{margin-bottom:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .vec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+  .vec-name{font-size:13px;font-weight:600}
+  .vec .row{display:grid;grid-template-columns:24px 1fr 32px;align-items:center;gap:6px;margin:2px 0}
+  .vec .row label{font-size:11px;color:var(--mut);text-align:right}
+  .vec input[type=range]{width:100%;accent-color:var(--accent)}
+  .vec .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:6px}
+  .result .big{font-size:18px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .c1{background:#f87171}.c2{background:#4ade80}.c3{background:#60a5fa}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .pos{color:var(--green)}.neg{color:var(--red)}.zero{color:var(--amber)}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 三阶行列式 = 平行六面体的有向体积</div>
+
+<div class="panel">
+  <h1>行列式的几何意义</h1>
+  <div class="sub">同济第七版 · 第1章 —— 三个行向量张成的平行六面体，其有向体积 = 行列式的值</div>
+  <div id="vecs"></div>
+  <div class="result">
+    <div class="big" id="detval">D = 4.0</div>
+    <div class="det" id="detinfo">三向量构成右手系 → 体积为正</div>
+  </div>
+  <div class="presets">
+    <button data-p="0">标准立方体</button>
+    <button data-p="1">右手系（正）</button>
+    <button data-p="2">交换两行（变号）</button>
+    <button data-p="3">共面（体积0）</button>
+    <button data-p="4">伸缩</button>
+  </div>
+  <div class="hint">💡 交换两行 → 行列式变号 → 平行六面体翻面（左手系）；共面 → 体积为 0 → 行列式为 0</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot c1"></span>行向量 <b>r₁</b></div>
+  <div><span class="dot c2"></span>行向量 <b>r₂</b></div>
+  <div><span class="dot c3"></span>行向量 <b>r₃</b></div>
+  <div style="color:var(--mut)">半透明体 = 平行六面体</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 5, 8); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(5,8,6); scene.add(dl);
+
+// 坐标轴
+const axisLen = 4.5, axes = new THREE.Group();
+function makeAxis(dir, color){
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), dir.clone().multiplyScalar(axisLen)]);
+  axes.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color })));
+}
+makeAxis(new THREE.Vector3(1,0,0), 0xf87171);
+makeAxis(new THREE.Vector3(0,1,0), 0x4ade80);
+makeAxis(new THREE.Vector3(0,0,1), 0x60a5fa);
+scene.add(axes);
+scene.add(new THREE.GridHelper(10, 10, 0x334155, 0x1e293b));
+
+// 三个行向量箭头
+const cols = [0xf87171, 0x4ade80, 0x60a5fa], names = ['r₁','r₂','r₃'];
+const arrows = [], dots = [];
+for(let i=0;i<3;i++){
+  const a = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, cols[i], 0.25, 0.15);
+  scene.add(a); arrows.push(a);
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 16), new THREE.MeshBasicMaterial({ color: cols[i] }));
+  scene.add(d); dots.push(d);
+}
+
+// 平行六面体（用8个顶点 + 6个面）
+const boxGroup = new THREE.Group();
+const boxMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false });
+const boxEdgesMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.7 });
+const boxMesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), boxMat);
+boxGroup.add(boxMesh);
+scene.add(boxGroup);
+// 自定义八面体用 BufferGeometry
+const boxGeo = new THREE.BufferGeometry();
+const positions = new Float32Array(6*6*3);
+boxGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+const boxCustom = new THREE.Mesh(boxGeo, boxMat);
+scene.add(boxCustom);
+const edgeLines = new THREE.LineSegments(new THREE.BufferGeometry(), boxEdgesMat);
+scene.add(edgeLines);
+
+function updateParallelepiped(v1, v2, v3){
+  // 8 个顶点
+  const O = new THREE.Vector3(0,0,0);
+  const a = new THREE.Vector3(...v1), b = new THREE.Vector3(...v2), c = new THREE.Vector3(...v3);
+  const verts = [
+    O, a, b, c, a.clone().add(b), a.clone().add(c), b.clone().add(c), a.clone().add(b).add(c)
+  ];
+  // 6 个面（三角形对）
+  const faces = [
+    [0,1,4],[0,4,2],   // O,a,b 面
+    [0,2,6],[0,6,3],   // O,b,c 面
+    [0,3,5],[0,5,1],   // O,c,a 面
+    [7,5,1],[7,1,4],   // 顶面
+    [7,4,2],[7,2,6],
+    [7,6,3],[7,3,5],
+  ];
+  const pos = [];
+  faces.forEach(f => { f.forEach(vi => { pos.push(verts[vi].x, verts[vi].y, verts[vi].z); }); });
+  boxCustom.geometry.attributes.position.array.set(pos);
+  boxCustom.geometry.attributes.position.needsUpdate = true;
+  boxCustom.geometry.computeVertexNormals();
+  // 12 条边
+  const edges = [
+    [0,1],[0,2],[0,3],[1,4],[1,5],[2,4],[2,6],[3,5],[3,6],[7,4],[7,5],[7,6]
+  ];
+  const epos = [];
+  edges.forEach(e => { epos.push(verts[e[0]].x, verts[e[0]].y, verts[e[0]].z, verts[e[1]].x, verts[e[1]].y, verts[e[1]].z); });
+  edgeLines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(epos, 3));
+}
+
+let V = [[2,0,0],[0,3,0],[1,1,1]];
+
+const vEl = document.getElementById('vecs');
+function renderSliders(){
+  vEl.innerHTML = '';
+  for(let i=0;i<3;i++){
+    const box = document.createElement('div'); box.className = 'vec';
+    box.innerHTML = '<div class="vec-head"><span class="vec-name" style="color:'+css(cols[i])+'">'+names[i]+'</span></div>';
+    ['x','y','z'].forEach((c,ci)=>{
+      const row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = '<label>'+c+'</label><input type="range" min="-4" max="4" step="0.1" value="'+V[i][ci]+'"><span class="num">'+V[i][ci]+'</span>';
+      const range = row.querySelector('input');
+      range.addEventListener('input', function(){
+        V[i][ci] = parseFloat(range.value);
+        row.querySelector('.num').textContent = V[i][ci].toFixed(1);
+        update();
+      });
+      box.appendChild(row);
+    });
+    vEl.appendChild(box);
+  }
+}
+function css(h){ return '#'+h.toString(16).padStart(6,'0'); }
+
+function det3(m){
+  return m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1]) - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+}
+
+function update(){
+  const d = det3(V);
+  const el = document.getElementById('detval');
+  el.textContent = 'D = ' + (Math.abs(d)<1e-9?0:d.toFixed(2));
+  el.className = 'big ' + (Math.abs(d)<1e-9?'zero':(d>0?'pos':'neg'));
+  let info;
+  if(Math.abs(d)<1e-9) info = '体积 = 0 → 三向量共面 → 行列式为 0（不可逆）';
+  else if(d>0) info = '有向体积为正 → 右手系（r₁,r₂,r₃ 次序）';
+  else info = '有向体积为负 → 左手系（交换两行会变号）';
+  document.getElementById('detinfo').textContent = info;
+  // 更新箭头
+  for(let i=0;i<3;i++){
+    const v = new THREE.Vector3(V[i][0],V[i][1],V[i][2]);
+    const len = v.length();
+    if(len<0.001){ arrows[i].visible=false; dots[i].visible=false; }
+    else {
+      arrows[i].visible=true; dots[i].visible=true;
+      arrows[i].setDirection(v.clone().normalize());
+      arrows[i].setLength(len, Math.min(0.35,len*0.2), Math.min(0.2,len*0.12));
+      dots[i].position.copy(v);
+    }
+  }
+  updateParallelepiped(V[0], V[1], V[2]);
+}
+
+const presets = {
+  0: [[1,0,0],[0,1,0],[0,0,1]],
+  1: [[2,0,0],[0,3,0],[1,1,1]],
+  2: [[0,3,0],[2,0,0],[1,1,1]],   // 交换 r1,r2 → 变号
+  3: [[2,1,0],[-1,2,0],[1,1,0]],  // 全在 xy 平面
+  4: [[3,0,0],[0,4,0],[0,0,2]],
+};
+document.querySelector('.presets').addEventListener('click', function(e){
+  const b = e.target.closest('button'); if(!b) return;
+  V = presets[b.dataset.p].map(r=>r.slice());
+  const ranges = document.querySelectorAll('#vecs input[type=range]');
+  let idx = 0;
+  for(let i=0;i<3;i++)for(let c=0;c<3;c++){ ranges[idx].value = V[i][c]; ranges[idx].parentElement.querySelector('.num').textContent = V[i][c].toFixed(1); idx++; }
+  update();
+});
+
+function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+window.addEventListener('resize', ()=>{ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+renderSliders(); update(); animate();
+</script>
+</body>
+</html>
