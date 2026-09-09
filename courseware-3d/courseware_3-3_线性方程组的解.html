@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>线性方程组的解 · 3D互动课件</title>
+<style>
+:root {
+  --bg-primary:#1D1F27; --bg-card:#252836; --bg-card-hover:#2D3040;
+  --text-primary:#EAECF0; --text-secondary:#9498A3; --text-muted:#5C6070;
+  --gradient-1:#6366F1; --gradient-2:#8B5CF6; --success:#10B981; --error:#EF4444; --warning:#F59E0B;
+  --vec-u:#F87171; --vec-v:#38BDF8; --area:#A78BFA; --border-color:rgba(255,255,255,0.08);
+  --radius:12px; --radius-sm:8px;
+  --font-family:'Microsoft YaHei','PingFang SC',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:var(--font-family);background:var(--bg-primary);color:var(--text-primary);line-height:1.6;min-height:100vh;overflow-x:hidden;}
+.skip-link{position:absolute;top:-100%;left:0;background:var(--gradient-2);color:#fff;padding:8px 16px;z-index:1000;border-radius:0 0 var(--radius-sm) 0;text-decoration:none;}
+.skip-link:focus{top:0;}
+.cover{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px;}
+.cover-title{font-size:42px;font-weight:700;background:linear-gradient(135deg,var(--gradient-1),var(--gradient-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:14px;}
+.cover-subtitle{font-size:18px;color:var(--text-secondary);margin-bottom:12px;}
+.cover-note{font-size:14px;color:var(--text-muted);margin-bottom:30px;max-width:600px;}
+.cover-start{padding:14px 40px;border:none;border-radius:30px;background:linear-gradient(135deg,var(--gradient-1),var(--gradient-2));color:#fff;font-size:18px;font-weight:600;cursor:pointer;transition:transform .2s;}
+.cover-start:hover{transform:translateY(-2px);}
+.scene-container{display:flex;gap:28px;max-width:1200px;margin:0 auto;padding:40px 20px;min-height:80vh;align-items:center;}
+.scene-3d-wrapper{flex:1;min-width:0;background:var(--bg-card);border-radius:var(--radius);border:.5px solid var(--border-color);overflow:hidden;position:relative;user-select:none;-webkit-user-select:none;}
+.scene-3d{width:100%;height:520px;perspective:1200px;perspective-origin:50% 50%;cursor:grab;position:relative;}
+.scene-3d:active{cursor:grabbing;}
+.scene-3d.dragging{cursor:grabbing;}
+.stage{width:100%;height:100%;position:absolute;top:0;left:0;transform-style:preserve-3d;transition:none;}
+.plane{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateZ(0);transform-style:preserve-3d;}
+.plane svg{display:block;overflow:visible;}
+.scene-hint{position:absolute;bottom:12px;left:12px;background:rgba(0,0,0,.6);color:var(--text-secondary);padding:6px 14px;border-radius:20px;font-size:12px;pointer-events:none;backdrop-filter:blur(8px);}
+.view-buttons{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;}
+.view-btn{padding:6px 12px;border:1px solid var(--border-color);border-radius:6px;background:rgba(0,0,0,.5);color:var(--text-secondary);font-size:12px;cursor:pointer;transition:all .2s;backdrop-filter:blur(8px);font-family:var(--font-family);}
+.view-btn:hover,.view-btn.active{background:linear-gradient(135deg,var(--gradient-1),var(--gradient-2));color:#fff;border-color:transparent;}
+.info-panel{width:370px;max-height:520px;overflow-y:auto;flex-shrink:0;}
+.info-card{background:var(--bg-card);border:.5px solid var(--border-color);border-radius:var(--radius);padding:18px;margin-bottom:14px;transition:all .3s ease;}
+.info-card.active{border-color:var(--gradient-2);background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.08));}
+.info-card h3{font-size:17px;font-weight:600;margin-bottom:8px;background:linear-gradient(135deg,var(--gradient-1),var(--gradient-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.info-card p{font-size:13.5px;color:var(--text-secondary);line-height:1.6;}
+.readout{font-family:Consolas,'Courier New',monospace;font-size:13px;color:var(--text-primary);}
+.readout .big{font-size:20px;font-weight:700;}
+.det-pos{color:var(--success);}.det-neg{color:var(--vec-v);}.det-zero{color:var(--error);font-weight:700;}
+.preset-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}
+.preset-btns button{flex:1 1 calc(50% - 4px);padding:8px 6px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-card-hover);color:var(--text-primary);font-size:12.5px;cursor:pointer;transition:all .2s;font-family:var(--font-family);}
+.preset-btns button:hover{border-color:var(--gradient-2);background:var(--gradient-2);color:#fff;}
+.slider-row{margin-top:10px;}
+.slider-row label{font-size:12.5px;color:var(--text-secondary);display:flex;justify-content:space-between;}
+.slider-row input[type=range]{width:100%;accent-color:var(--gradient-2);margin-top:4px;}
+.knowledge-section{max-width:900px;margin:0 auto;padding:40px 20px;}
+.section-title{font-size:28px;font-weight:600;margin-bottom:24px;background:linear-gradient(135deg,var(--gradient-1),var(--gradient-2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.card{background:var(--bg-card);border:.5px solid var(--border-color);border-radius:var(--radius);padding:24px;margin-bottom:20px;transition:transform .3s,background .3s;}
+.card:hover{background:var(--bg-card-hover);transform:translateY(-2px);}
+.card h3{font-size:20px;font-weight:600;margin-bottom:12px;}
+.card p{font-size:15px;color:var(--text-secondary);line-height:1.7;}
+.card .tag{display:inline-block;font-size:12px;padding:2px 10px;border-radius:20px;background:rgba(139,92,246,.15);color:var(--gradient-2);margin-right:6px;margin-bottom:6px;}
+.card code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;font-family:Consolas,monospace;color:#c7d2fe;}
+.summary-section{text-align:center;padding:60px 20px;}
+.summary-card{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.08));border:1px solid var(--border-color);border-radius:var(--radius);padding:32px;max-width:680px;margin:0 auto;}
+.summary-card p{font-size:16px;color:var(--text-secondary);margin-top:10px;}
+@media(max-width:900px){.scene-container{flex-direction:column;}.info-panel{width:100%;max-height:none;}.scene-3d{height:380px;}.cover-title{font-size:30px;}}
+@media(max-width:480px){.scene-3d{height:300px;}.cover-title{font-size:24px;}.view-buttons{flex-direction:row;top:auto;bottom:12px;right:12px;}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}.stage{transition:none!important;}}
+</style>
+</head>
+<body>
+<a href="#sceneArea" class="skip-link">跳到3D场景</a>
+
+<section class="cover" id="top">
+  <h1 class="cover-title">线性方程组的解</h1>
+  <p class="cover-subtitle">解 = 两条直线的交点（及其三种情形）</p>
+  <p class="cover-note">切换「唯一解/无解/无穷多解」预设，看两条直线如何相交、平行或重合——对应 detA≠0 / 秩增广>秩 / 秩相等。 本课件由 ai-book-skill 链路生成（单文件、零外部依赖），可直接嵌入泛雅或挂接到对应 L5 知识点。</p>
+  <button class="cover-start" onclick="document.getElementById('sceneArea').scrollIntoView({behavior:'smooth'})">开始探索</button>
+</section>
+
+<section id="sceneArea">
+  <div class="scene-container" style="min-height:80vh;padding-top:20px;">
+    <div class="scene-3d-wrapper" role="img" aria-label="线性方程组的解：解 = 两条直线的交点（及其三种情形）">
+      <div class="scene-3d" id="scene3D">
+        <div class="stage" id="stage3D"><div class="plane" id="plane"></div></div>
+        <div class="view-buttons">
+          <button class="view-btn active" data-view="perspective" onclick="setView('perspective')">自由视角</button>
+          <button class="view-btn" data-view="front" onclick="setView('front')">正视</button>
+          <button class="view-btn" data-view="top" onclick="setView('top')">俯视</button>
+        </div>
+        <div class="scene-hint">🖱️ 拖拽旋转 | 滚轮缩放 | 右侧调节参数</div>
+      </div>
+    </div>
+    <div class="info-panel" id="infoPanel">
+      <div class="info-card active"><h3>实时数据读出</h3><div class="readout" id="readout"></div></div>
+      <div class="info-card"><h3>互动预设</h3><p style="margin-bottom:8px;">一键切换典型情形：</p><div class="preset-btns"><button onclick="applyPreset('uniq')">① 唯一解</button><button onclick="applyPreset('none')">② 无解(平行)</button><button onclick="applyPreset('inf')">③ 无穷多(重合)</button></div><div class="slider-row"><label>直线2 斜率 <span id="sxVal">0.5</span></label><input type="range" id="sx" min="-3" max="3" step="0.1" value="0.5" oninput="onSlider('sx', +this.value)"></div></div>
+      <div class="info-card"><h3>连接的知识图谱</h3><p>本课件对应下列 L5 知识点：线性方程组有解判定定理；克拉默法则；矩阵的秩</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="knowledge-section">
+  <h2 class="section-title">知识拆解</h2><div class="reveal"><div class="card"><h3>有解判定</h3><p>系数阵秩 = 增广阵秩时有解；相等且=未知数个数时唯一解。</p><p><span class="tag">线性方程组有解判定定理</span></p></div></div><div class="reveal"><div class="card"><h3>唯一解</h3><p>两线交于一点 ⇔ 系数阵满秩(detA≠0)。</p><p><span class="tag">克拉默法则</span></p></div></div><div class="reveal"><div class="card"><h3>无穷多/无解</h3><p>两线重合⇔无穷多；平行⇔无解。秩的差异说了算。</p><p><span class="tag">矩阵的秩</span></p></div></div>
+</section>
+
+<section class="summary-section">
+  <h2 class="section-title">本节要点</h2>
+  <div class="summary-card">
+    <p style="font-size:20px;font-weight:700;color:var(--text-primary);">解是直线的相交，判定看秩</p>
+    <p>把方程组画成直线：交点的存在性与个数完全由「系数阵与增广阵的秩」决定。几何与代数在此严丝合缝。</p>
+    <p style="margin-top:14px;color:var(--text-muted);font-size:13px;">本 3D 互动课件，仅用于课程教学，属《线性代数》课程教学改革落地成果。</p>
+  </div>
+</section>
+
+<script>
+/* ===== 主题配置(由生成器注入) ===== */
+var cfg = {"mode": "solution", "opts": {}};
+var state = {"a1": 1, "b1": -1, "c1": 1, "a2": 1, "b2": 2, "c2": 4};
+var PRESETS = {"uniq": {"set": {"a1": 1, "b1": -1, "c1": 1, "a2": 1, "b2": 2, "c2": 4}}, "none": {"set": {"a1": 1, "b1": -1, "c1": 1, "a2": 1, "b2": -1, "c2": 3}}, "inf": {"set": {"a1": 1, "b1": -1, "c1": 1, "a2": 2, "b2": -2, "c2": 2}}};
+var SLIDERS = {"sx": {"key": "b2", "scale": null, "unit": "", "fmt": null}};
+
+/* ===== SVG 基础工具 ===== */
+var svgNS='http://www.w3.org/2000/svg';
+var C=210, S=100;
+function px(x,y){return [C+x*S, C-y*S];}
+function el(tag,attrs){var e=document.createElementNS(svgNS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function arrow(svg,x1,y1,x2,y2,color,w){
+  var a=px(x1,y1),b=px(x2,y2);
+  var g=el('g',{});
+  g.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:color,'stroke-width':w,'stroke-linecap':'round'}));
+  var ang=Math.atan2(b[1]-a[1],b[0]-a[0]),h=10;
+  g.appendChild(el('polygon',{points:b[0]+','+b[1]+' '+(b[0]-h*Math.cos(ang-0.4))+','+(b[1]-h*Math.sin(ang-0.4))+' '+(b[0]-h*Math.cos(ang+0.4))+','+(b[1]-h*Math.sin(ang+0.4)),fill:color}));
+  svg.appendChild(g);
+}
+function drawAxes(svg,xf){
+  xf=xf||function(x,y){return [x,y];};
+  var o=px(0,0);
+  var e1=px.apply(null,xf(2.4,0)), e2=px.apply(null,xf(0,2.4));
+  svg.appendChild(el('line',{x1:o[0],y1:o[1],x2:e1[0],y2:e1[1],stroke:'rgba(255,255,255,0.35)','stroke-width':1.5}));
+  svg.appendChild(el('line',{x1:o[0],y1:o[1],x2:e2[0],y2:e2[1],stroke:'rgba(255,255,255,0.35)','stroke-width':1.5}));
+}
+function gridUnder(svg,xf,stroke,w){
+  xf=xf||function(x,y){return [x,y];};
+  for(var i=-2;i<=2;i++){
+    var p1=px.apply(null,xf(i,-2)), p2=px.apply(null,xf(i,2));
+    svg.appendChild(el('line',{x1:p1[0],y1:p1[1],x2:p2[0],y2:p2[1],stroke:stroke,'stroke-width':w}));
+    var q1=px.apply(null,xf(-2,i)), q2=px.apply(null,xf(2,i));
+    svg.appendChild(el('line',{x1:q1[0],y1:q1[1],x2:q2[0],y2:q2[1],stroke:stroke,'stroke-width':w}));
+  }
+}
+function poly(svg,pts,fill,stroke,w){
+  var s=pts.map(function(p){return px.apply(null,p).join(',');}).join(' ');
+  svg.appendChild(el('polygon',{points:s,fill:fill,stroke:stroke,'stroke-width':w}));
+}
+function label(svg,x,y,txt,color){var p=px(x,y);var t=el('text',{x:p[0]+5,y:p[1]+4,fill:color||'#fff','font-size':14,'font-weight':700});t.textContent=txt;svg.appendChild(t);}
+function det2(a,b,c,d){return a*d-b*c;}
+function inv2(a,b,c,d){var D=a*d-b*c;if(Math.abs(D)<1e-9)return null;return [d/D,-b/D,-c/D,a/D];}
+
+/* ===== 各模式场景绘制 ===== */
+function drawScene(svg,st){
+  var m=cfg.mode;
+  if(m==='det') drawDet(svg,st);
+  else if(m==='transform') drawTransform(svg,st);
+  else if(m==='rank') drawRank(svg,st);
+  else if(m==='solution') drawSolution(svg,st);
+  else if(m==='span') drawSpan(svg,st);
+  else if(m==='subspace') drawSubspace(svg,st);
+  else if(m==='inner') drawInner(svg,st);
+  else if(m==='eigen') drawEigen(svg,st);
+  else if(m==='quadratic') drawQuad(svg,st);
+}
+
+function drawDet(svg,st){
+  if(cfg.opts&&cfg.opts.cramer){
+    var u=[st.ux,st.uy], v=[st.vx,st.vy], w=[st.wx,st.wy];
+    drawAxes(svg);
+    poly(svg,[[0,0],u,[u[0]+v[0],u[1]+v[1]],v],'rgba(167,139,250,0.30)','rgba(167,139,250,0.9)',2);
+    poly(svg,[[0,0],w,[w[0]+v[0],w[1]+v[1]],v],'rgba(245,158,11,0.30)','rgba(245,158,11,0.9)',2);
+    arrow(svg,0,0,u[0],u[1],'#F87171',3); arrow(svg,0,0,v[0],v[1],'#38BDF8',3); arrow(svg,0,0,w[0],w[1],'#34D399',3);
+    label(svg,u[0],u[1],'u','#F87171'); label(svg,v[0],v[1],'v','#38BDF8'); label(svg,w[0],w[1],'w','#34D399');
+    return;
+  }
+  if(cfg.opts&&cfg.opts.dependence){
+    var u=[st.ux,st.uy], v=[st.vx,st.vy];
+    drawAxes(svg);
+    arrow(svg,0,0,u[0],u[1],'#F87171',3); arrow(svg,0,0,v[0],v[1],'#38BDF8',3);
+    label(svg,u[0],u[1],'u','#F87171'); label(svg,v[0],v[1],'v','#38BDF8');
+    poly(svg,[[0,0],[1,0],[1,1],[0,1]],'none','rgba(255,255,255,0.25)',1);
+    return;
+  }
+  var u=[1,0], v=[st.vx,st.vy];
+  drawAxes(svg);
+  poly(svg,[[0,0],u,[u[0]+v[0],u[1]+v[1]],v],'rgba(167,139,250,0.32)','rgba(167,139,250,0.9)',2);
+  arrow(svg,0,0,u[0],u[1],'#F87171',3); arrow(svg,0,0,v[0],v[1],'#38BDF8',3);
+  label(svg,u[0],u[1],'u','#F87171'); label(svg,v[0],v[1],'v','#38BDF8');
+  poly(svg,[[0,0],[1,0],[1,1],[0,1]],'none','rgba(255,255,255,0.25)',1);
+  var t=el('text',{x:px(0.5,0.5)[0],y:px(0.5,0.5)[1],fill:'#A78BFA','font-size':13});t.textContent='S=|det|';svg.appendChild(t);
+}
+
+function drawTransform(svg,st){
+  var a=st.a,b=st.b,c=st.c,d=st.d;
+  var xf=function(x,y){return [a*x+b*y, c*x+d*y];};
+  drawAxes(svg);
+  gridUnder(svg,xf,'rgba(99,102,241,0.55)',1.4);
+  gridUnder(svg,null,'rgba(255,255,255,0.06)',1);
+  poly(svg,[[0,0],xf(1,0),xf(1,1),xf(0,1)],'rgba(167,139,250,0.22)','rgba(167,139,250,0.9)',2);
+  arrow(svg,0,0,xf(1,0)[0],xf(1,0)[1],'#F87171',3); arrow(svg,0,0,xf(0,1)[0],xf(0,1)[1],'#38BDF8',3);
+  label(svg,xf(1,0)[0],xf(1,0)[1],'u','#F87171'); label(svg,xf(0,1)[0],xf(0,1)[1],'v','#38BDF8');
+  if(cfg.opts&&cfg.opts.block){
+    var cols=['rgba(248,113,113,0.25)','rgba(56,189,248,0.25)','rgba(52,211,153,0.25)','rgba(251,191,36,0.25)'];
+    var bl=[[0,0,0.5,0.5],[0.5,0,1,0.5],[0,0.5,0.5,1],[0.5,0.5,1,1]];
+    for(var i=0;i<4;i++){var q=bl[i];poly(svg,[[q[0],q[1]],xf(q[2],q[1]),xf(q[2],q[3]),xf(q[0],q[3])],cols[i],'rgba(255,255,255,0.5)',1);}
+  }
+  if(cfg.opts&&cfg.opts.inverse&&st.inv){
+    var iv=inv2(a,b,c,d);
+    if(iv){var xf2=function(x,y){return [iv[0]*x+iv[1]*y, iv[2]*x+iv[3]*y];};
+      gridUnder(svg,xf2,'rgba(16,185,129,0.5)',1.2);
+      poly(svg,[[0,0],xf2(1,0),xf2(1,1),xf2(0,1)],'rgba(16,185,129,0.18)','rgba(16,185,129,0.9)',2);
+    }
+  }
+}
+
+function drawRank(svg,st){
+  var a=st.a,b=st.b,c=st.c,d=st.d;
+  var xf=function(x,y){return [a*x+b*y, c*x+d*y];};
+  drawAxes(svg);
+  gridUnder(svg,xf,'rgba(99,102,241,0.55)',1.4);
+  gridUnder(svg,null,'rgba(255,255,255,0.06)',1);
+  arrow(svg,0,0,a,c,'#F87171',3); arrow(svg,0,0,b,d,'#38BDF8',3);
+  label(svg,a,c,'u','#F87171'); label(svg,b,d,'v','#38BDF8');
+}
+
+function drawSolution(svg,st){
+  drawAxes(svg);
+  function linePts(a1,b1,c1){
+    var pts=[];
+    if(Math.abs(b1)>1e-6){pts.push([-2,(c1-a1*(-2))/b1]);pts.push([2,(c1-a1*2)/b1]);}
+    else {pts.push([c1/a1,-2]);pts.push([c1/a1,2]);}
+    return pts;
+  }
+  function seg(svg,p,q,color){var a=px(p[0],p[1]),b=px(q[0],q[1]);svg.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:color,'stroke-width':2.5}));}
+  var L1=linePts(st.a1,st.b1,st.c1), L2=linePts(st.a2,st.b2,st.c2);
+  seg(svg,L1[0],L1[1],'#F87171'); seg(svg,L2[0],L2[1],'#38BDF8');
+  var D=st.a1*st.b2-st.b1*st.a2;
+  if(Math.abs(D)>1e-6){var x=(st.c1*st.b2-st.b1*st.c2)/D, y=(st.a1*st.c2-st.c1*st.a2)/D;
+    var p=px(x,y);svg.appendChild(el('circle',{cx:p[0],cy:p[1],r:7,fill:'#A78BFA',stroke:'#fff','stroke-width':2}));
+    label(svg,x,y,'交点','#A78BFA');
+  }
+  if(cfg.opts&&cfg.opts.structure){
+    var p0=[st.xp,st.yp], h=[st.hx,st.hy];
+    var P=[p0[0]+st.t*h[0], p0[1]+st.t*h[1]];
+    var a=px(p0[0],p0[1]), b=px(P[0],P[1]);
+    svg.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'#A78BFA','stroke-width':3}));
+    svg.appendChild(el('circle',{cx:a[0],cy:a[1],r:6,fill:'#F87171',stroke:'#fff','stroke-width':2}));
+    svg.appendChild(el('circle',{cx:b[0],cy:b[1],r:6,fill:'#34D399',stroke:'#fff','stroke-width':2}));
+    arrow(svg,0,0,h[0],h[1],'#38BDF8',2);
+    label(svg,p0[0],p0[1],'x_p','#F87171'); label(svg,P[0],P[1],'x','#34D399');
+  }
+}
+
+function drawSpan(svg,st){
+  drawAxes(svg);
+  var u=[st.ux,st.uy], v=[st.vx,st.vy];
+  arrow(svg,0,0,u[0],u[1],'#F87171',3); arrow(svg,0,0,v[0],v[1],'#38BDF8',3);
+  label(svg,u[0],u[1],'u','#F87171'); label(svg,v[0],v[1],'v','#38BDF8');
+  var P=[st.s*u[0]+st.t*v[0], st.s*u[1]+st.t*v[1]];
+  poly(svg,[[0,0],u,[u[0]+v[0],u[1]+v[1]],v],'rgba(167,139,250,0.18)','rgba(167,139,250,0.6)',1.5);
+  arrow(svg,0,0,P[0],P[1],'#34D399',3);
+  svg.appendChild(el('circle',{cx:px(P[0],P[1])[0],cy:px(P[0],P[1])[1],r:6,fill:'#34D399',stroke:'#fff','stroke-width':2}));
+  label(svg,P[0],P[1],'s·u+t·v','#34D399');
+}
+
+function drawSubspace(svg,st){
+  drawAxes(svg);
+  var ang=st.ang*Math.PI/180;
+  var dir=[Math.cos(ang),Math.sin(ang)];
+  var p1=[dir[0]*2,dir[1]*2], p2=[-dir[0]*2,-dir[1]*2];
+  var off=st.through? [0.6*Math.cos(ang+Math.PI/2),0.6*Math.sin(ang+Math.PI/2)]:[0,0];
+  var a=px(p1[0]+off[0],p1[1]+off[1]), b=px(p2[0]+off[0],p2[1]+off[1]);
+  svg.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'#38BDF8','stroke-width':3}));
+  var q1=[dir[0],dir[1]], q2=[dir[0]*0.5,dir[1]*0.5];
+  var comb=[q1[0]+q2[0]+off[0], q1[1]+q2[1]+off[1]];
+  arrow(svg,off[0],off[1],q1[0]+off[0],q1[1]+off[1],'#F87171',2);
+  arrow(svg,off[0],off[1],q2[0]+off[0],q2[1]+off[1],'#F87171',2);
+  svg.appendChild(el('circle',{cx:px(comb[0],comb[1])[0],cy:px(comb[0],comb[1])[1],r:5,fill:'#34D399',stroke:'#fff','stroke-width':2}));
+}
+
+function drawInner(svg,st){
+  drawAxes(svg);
+  var u=[st.ux,st.uy], v=[st.vx,st.vy];
+  var dot=u[0]*v[0]+u[1]*v[1];
+  var ulen=Math.hypot(u[0],u[1]), vlen=Math.hypot(v[0],v[1]);
+  var proj=[dot/(ulen*ulen)*u[0], dot/(ulen*ulen)*u[1]];
+  arrow(svg,0,0,u[0],u[1],'#F87171',3); arrow(svg,0,0,v[0],v[1],'#38BDF8',3);
+  label(svg,u[0],u[1],'u','#F87171'); label(svg,v[0],v[1],'v','#38BDF8');
+  var a=px(v[0],v[1]), b=px(proj[0],proj[1]);
+  svg.appendChild(el('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:'#34D399','stroke-width':1.5,'stroke-dasharray':'4 4'}));
+  svg.appendChild(el('circle',{cx:b[0],cy:b[1],r:5,fill:'#34D399',stroke:'#fff','stroke-width':2}));
+  label(svg,proj[0],proj[1],'proj','#34D399');
+}
+
+function drawEigen(svg,st){
+  drawAxes(svg);
+  var a=st.a,b=st.b,d=st.d,c=b; // 对称阵 c=b
+  arrow(svg,0,0,a,c,'#F87171',3); arrow(svg,0,0,b,d,'#38BDF8',3);
+  label(svg,a,c,'u','#F87171'); label(svg,b,d,'v','#38BDF8');
+  var tr=a+d, Dv=a*d-b*b, disc=tr*tr-4*Dv;
+  if(disc>=0){
+    var l1=(tr+Math.sqrt(disc))/2, l2=(tr-Math.sqrt(disc))/2;
+    [l1,l2].forEach(function(lam){
+      if(Math.abs(lam)>1e-9){
+        var ex=b, ey=lam-a; var n=Math.hypot(ex,ey)||1; ex/=n; ey/=n;
+        var e1=[ex,ey], e2=[-ex,-ey];
+        var A=px(e1[0],e1[1]), B=px(e2[0],e2[1]);
+        svg.appendChild(el('line',{x1:A[0],y1:A[1],x2:B[0],y2:B[1],stroke:'#34D399','stroke-width':2.5,'stroke-dasharray':'6 4'}));
+        arrow(svg,0,0,e1[0],e1[1],'#34D399',2);
+      }
+    });
+  }
+  if(cfg.opts&&cfg.opts.similar){ label(svg,1.4,1.4,'P⁻¹AP: 同变换·换基','#A78BFA'); }
+  if(cfg.opts&&cfg.opts.diag){ label(svg,1.4,1.4,'特征方向正交→可对角化','#A78BFA'); }
+}
+
+function drawQuad(svg,st){
+  drawAxes(svg);
+  var a=st.a,b=st.b,d=st.d;
+  var rot=(st.rot||0)*Math.PI/180;
+  var ca=Math.cos(rot), sa=Math.sin(rot);
+  var pts=[];
+  for(var i=0;i<=72;i++){
+    var th=i/72*2*Math.PI, x0=Math.cos(th), y0=Math.sin(th);
+    var Q=a*x0*x0+2*b*x0*y0+d*y0*y0;
+    if(Q>1e-4){var r=1/Math.sqrt(Q); var X=x0*r, Y=y0*r;
+      var Xr=X*ca-Y*sa, Yr=X*sa+Y*ca;
+      pts.push(px(Xr,Yr));
+    }
+  }
+  if(pts.length>1){
+    var s=pts.map(function(p){return p.join(',');}).join(' ');
+    svg.appendChild(el('polygon',{points:s,fill:'rgba(167,139,250,0.22)',stroke:'rgba(167,139,250,0.95)','stroke-width':2}));
+  }
+  if(st.rot){
+    var ax=px(ca*2,sa*2), ay=px(-sa*2,ca*2);
+    svg.appendChild(el('line',{x1:C,y1:C,x2:ax[0],y2:ax[1],stroke:'#34D399','stroke-width':1.5,'stroke-dasharray':'4 4'}));
+    svg.appendChild(el('line',{x1:C,y1:C,x2:ay[0],y2:ay[1],stroke:'#34D399','stroke-width':1.5,'stroke-dasharray':'4 4'}));
+  }
+}
+
+/* ===== 读出 ===== */
+function fmt(x){return (Math.round(x*1000)/1000);}
+function computeReadout(st){
+  var m=cfg.mode, h='';
+  if(m==='det'){
+    if(cfg.opts&&cfg.opts.cramer){
+      var u=[st.ux,st.uy],v=[st.vx,st.vy],w=[st.wx,st.wy];
+      var D=det2(u[0],v[0],u[1],v[1]);
+      var Dx=det2(w[0],v[0],w[1],v[1]), Dy=det2(u[0],w[0],u[1],w[1]);
+      h='<div>A=[u v], 常数列 w</div><div style="margin-top:6px;">detA = '+fmt(D)+'</div>';
+      if(Math.abs(D)<1e-6) h+='<div class="det-zero big">detA=0 → 无解或无穷多解</div>';
+      else h+='<div>x = '+fmt(Dx)+' / '+fmt(D)+' = <span class="det-pos">'+fmt(Dx/D)+'</span></div><div>y = '+fmt(Dy)+' / '+fmt(D)+' = <span class="det-pos">'+fmt(Dy/D)+'</span></div>';
+      h+='<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">绿色平行四边形面积=detA；橙色(det[w,v])占比即 x。</div>';
+    } else if(cfg.opts&&cfg.opts.dependence){
+      var u=[st.ux,st.uy],v=[st.vx,st.vy];
+      var D=det2(u[0],v[0],u[1],v[1]);
+      var rel=Math.abs(D)<1e-6;
+      h='<div>u=('+fmt(u[0])+', '+fmt(u[1])+'), v=('+fmt(v[0])+', '+fmt(v[1])+')</div>';
+      h+='<div style="margin-top:6px;">det([u,v]) = <span class="'+(rel?'det-zero':'det-pos')+'">'+fmt(D)+'</span></div>';
+      h+='<div class="'+(rel?'det-zero':'det-pos')+' big">'+(rel?'线性相关（共线·可互相表示）':'线性无关')+'</div>';
+    } else {
+      var u=[1,0],v=[st.vx,st.vy]; var D=det2(u[0],v[0],u[1],v[1]);
+      var cls=D>1e-9?'det-pos':(D<-1e-9?'det-neg':'det-zero');
+      h='<div>A=[u v], u=(1,0), v=('+fmt(v[0])+', '+fmt(v[1])+')</div>';
+      h+='<div style="margin-top:6px;">det(A) = <span class="'+cls+'">'+fmt(D)+'</span></div>';
+      h+='<div class="'+cls+' big">|det| = 面积 = '+fmt(Math.abs(D))+'</div>';
+    }
+  } else if(m==='transform'){
+    var a=st.a,b=st.b,c=st.c,d=st.d, D=det2(a,b,c,d);
+    var cls=D>1e-9?'det-pos':(D<-1e-9?'det-neg':'det-zero');
+    h='<div>A = [ '+fmt(a)+'  '+fmt(b)+' ]</div><div>&nbsp;&nbsp;&nbsp;&nbsp;[ '+fmt(c)+'  '+fmt(d)+' ]</div>';
+    h+='<div style="margin-top:6px;">det(A) = <span class="'+cls+'">'+fmt(D)+'</span></div>';
+    if(cfg.opts&&cfg.opts.compose){var e=st.e,f=st.f,g=st.g,h2=st.h;
+      if(e!==undefined){var ABa=a*e+b*g, ABb=a*f+b*h, ABc=c*e+d*g, ABd=c*f+d*h; var Dab=det2(ABa,ABb,ABc,ABd);
+      h+='<div style="margin-top:4px;color:var(--text-secondary);">det(AB)='+fmt(Dab)+'=detA·detB</div>';}}
+    if(cfg.opts&&cfg.opts.inverse){if(st.inv&&Math.abs(D)>1e-6){h+='<div style="margin-top:4px;color:var(--success);">A⁻¹ 已施加(绿网格)→退回单位方格</div>';}else if(Math.abs(D)<1e-6){h+='<div class="det-zero">det=0 → 奇异·无逆·压扁成线</div>';}}
+    if(cfg.opts&&cfg.opts.elementary){h+='<div style="margin-top:4px;color:var(--text-secondary);">初等变换：对换变号 / 倍乘×k / 倍加不变</div>';}
+    if(cfg.opts&&cfg.opts.block){h+='<div style="margin-top:4px;color:var(--text-secondary);">四色=分块；变换按块批量搬动。</div>';}
+  } else if(m==='rank'){
+    var a=st.a,b=st.b,c=st.c,d=st.d, D=det2(a,b,c,d);
+    var rk=Math.abs(D)>1e-6?2:(Math.abs(a)+Math.abs(b)+Math.abs(c)+Math.abs(d)>1e-6?1:0);
+    h='<div>列向量 u=('+fmt(a)+', '+fmt(c)+'), v=('+fmt(b)+', '+fmt(d)+')</div>';
+    h+='<div style="margin-top:6px;">det = <span class="'+(rk<2?'det-zero':'det-pos')+'">'+fmt(D)+'</span></div>';
+    h+='<div class="'+(rk<2?'det-zero':'det-pos')+' big">秩 rank = '+rk+'</div>';
+    h+='<div style="margin-top:4px;color:var(--text-secondary);">rank=1 时整片网格塌成一条线（列共线）。</div>';
+  } else if(m==='solution'){
+    if(cfg.opts&&cfg.opts.structure){
+      h='<div>特解 x_p = ('+fmt(st.xp)+', '+fmt(st.yp)+')</div>';
+      h+='<div style="margin-top:6px;">齐次方向 (h_x,h_y) = ('+fmt(st.hx)+', '+fmt(st.hy)+')</div>';
+      h+='<div style="margin-top:6px;">当前 x = x_p + '+fmt(st.t)+'·h</div>';
+      h+='<div style="margin-top:4px;color:var(--text-secondary);">解集 = 过 x_p 沿 h 的整条直线。</div>';
+    } else {
+      var D=st.a1*st.b2-st.b1*st.a2;
+      if(Math.abs(D)>1e-6){var x=(st.c1*st.b2-st.b1*st.c2)/D,y=(st.a1*st.c2-st.c1*st.a2)/D;
+        h='<div>两线相交于唯一解</div><div class="det-pos big">x='+fmt(x)+', y='+fmt(y)+'</div>';}
+      else {
+        var same=Math.abs(st.a1*st.c2-st.c1*st.a2)<1e-6&&Math.abs(st.b1*st.c2-st.c2*st.b1)<1e-6;
+        h='<div class="det-zero">'+(same?'两线重合 → 无穷多解':'两线平行 → 无解')+'</div>';
+        h+='<div style="margin-top:4px;color:var(--text-secondary);">系数阵秩 ≠ 增广阵秩 → 无解；相等且<未知数 → 无穷多。</div>';
+      }
+    }
+  } else if(m==='span'){
+    var P=[st.s*st.ux+st.t*st.vx, st.s*st.uy+st.t*st.vy];
+    var dep=Math.abs(st.ux*st.vy-st.uy*st.vx)<1e-6;
+    h='<div>s='+fmt(st.s)+', t='+fmt(st.t)+'</div>';
+    h+='<div style="margin-top:6px;">P = s·u + t·v = ('+fmt(P[0])+', '+fmt(P[1])+')</div>';
+    h+='<div style="margin-top:4px;color:var(--text-secondary);">'+(dep?'u,v 共线→张出一条线':'u,v 不共线→张满整个平面')+'</div>';
+  } else if(m==='subspace'){
+    h='<div>'+(st.through?'已平移(不过原点)':'过原点')+'的直线</div>';
+    h+='<div style="margin-top:6px;" class="'+(st.through?'det-zero':'det-pos')+'">'+(st.through?'不封闭 → 不是子空间':'对加法/数乘封闭 → 是子空间')+'</div>';
+  } else if(m==='inner'){
+    var u=[st.ux,st.uy],v=[st.vx,st.vy];
+    var dot=u[0]*v[0]+u[1]*v[1], ul=Math.hypot(u[0],u[1]), vl=Math.hypot(v[0],v[1]);
+    var ang=ul*vl>1e-9?Math.acos(dot/(ul*vl))*180/Math.PI:0;
+    var orth=Math.abs(dot)<1e-6;
+    h='<div>|u|='+fmt(ul)+', |v|='+fmt(vl)+'</div>';
+    h+='<div style="margin-top:6px;">u·v = <span class="'+(orth?'det-pos':'det-neg')+'">'+fmt(dot)+'</span></div>';
+    h+='<div style="margin-top:4px;">夹角 θ ≈ '+fmt(ang)+'°</div>';
+    h+='<div class="'+(orth?'det-pos':'det-neg')+' big">'+(orth?'正交 (u·v=0)':'非正交')+'</div>';
+  } else if(m==='eigen'){
+    var a=st.a,b=st.b,d=st.d, tr=a+d, Dv=a*d-b*b, disc=tr*tr-4*Dv;
+    if(disc<0){h='<div>特征值 = 共轭复数</div><div class="det-neg big">λ = '+fmt(tr/2)+' ± '+fmt(Math.sqrt(-disc)/2)+'i</div><div style="margin-top:4px;color:var(--text-secondary);">如旋转：只转向不伸缩。</div>';}
+    else{var l1=(tr+Math.sqrt(disc))/2,l2=(tr-Math.sqrt(disc))/2;
+      h='<div>A = [ '+fmt(a)+'  '+fmt(b)+' ]</div><div>&nbsp;&nbsp;&nbsp;[ '+fmt(b)+'  '+fmt(d)+' ]</div>';
+      h+='<div style="margin-top:6px;">λ₁='+fmt(l1)+', λ₂='+fmt(l2)+'</div>';
+      h+='<div class="det-pos big">特征方向见绿色虚线</div>';
+      h+='<div style="margin-top:4px;color:var(--text-secondary);">沿特征方向仅伸缩 λ 倍、不转向。</div>';
+    }
+  } else if(m==='quadratic'){
+    var a=st.a,b=st.b,d=st.d, Dv=a*d-b*b, tr=a+d, disc=tr*tr-4*Dv;
+    var l1=(tr+Math.sqrt(disc))/2,l2=(tr-Math.sqrt(disc))/2;
+    var pos=disc>=0&&l1>0&&l2>0, ind=disc>=0&&l1*l2<0;
+    h='<div>f = '+fmt(a)+'x² + '+fmt(2*b)+'xy + '+fmt(d)+'y²</div>';
+    h+='<div style="margin-top:6px;">特征值 λ₁='+fmt(l1)+', λ₂='+fmt(l2)+'</div>';
+    h+='<div class="'+(pos?'det-pos':(ind?'det-neg':'det-zero'))+' big">'+(pos?'正定(椭圆·全凸)':(ind?'不定(鞍形)':(disc<0?'复特征值':'半正定/退化)')))+'</div>';
+    if(!cfg.opts||!cfg.opts.posOnly){h+='<div style="margin-top:4px;color:var(--text-secondary);">旋转坐标使椭圆轴对齐→标准形(仅平方项)。</div>';}
+  }
+  document.getElementById('readout').innerHTML=h;
+}
+
+/* ===== 预设/滑块 ===== */
+function syncSliders(){
+  for(var id in SLIDERS){var s=SLIDERS[id];
+    var val=state[s.key]; if(s.scale) val=val/s.scale;
+    var inp=document.getElementById(id); if(inp){inp.value=val;}
+    var lab=document.getElementById(id+'Val'); if(lab){lab.textContent=(s.fmt? s.fmt(val): val)+(s.unit||'');}
+  }
+}
+function applyPreset(name){var p=PRESETS[name];if(!p)return;for(var k in p.set){state[k]=p.set[k];}syncSliders();buildSVG();stopAutoRotate();setTimeout(startAutoRotate,3000);}
+function onSlider(id,val){var s=SLIDERS[id];if(!s)return;var v=val;if(s.scale)v=val*s.scale;state[s.key]=v;var lab=document.getElementById(id+'Val');if(lab){lab.textContent=(s.fmt?s.fmt(val):val)+(s.unit||'');}buildSVG();}
+
+/* ===== 3D 引擎 (CSS 3D) ===== */
+(function(){
+  var scene=document.getElementById('scene3D'), stage=document.getElementById('stage3D');
+  var rotationX=-28,rotationY=35,zoom=1,isDragging=false,lastX,lastY,autoRotate=true,autoRotateId=null;
+  function buildSVG(){var plane=document.getElementById('plane');plane.innerHTML='';var svg=el('svg',{width:420,height:420,viewBox:'0 0 420 420'});drawScene(svg,state);plane.appendChild(svg);computeReadout(state);}
+  function updateTransform(){stage.style.transform='rotateX('+rotationX+'deg) rotateY('+rotationY+'deg) scale('+zoom+')';}
+  scene.addEventListener('mousedown',function(e){isDragging=true;lastX=e.clientX;lastY=e.clientY;scene.classList.add('dragging');stopAutoRotate();e.preventDefault();});
+  document.addEventListener('mousemove',function(e){if(!isDragging)return;rotationY+=(e.clientX-lastX)*0.5;rotationX-=(e.clientY-lastY)*0.5;rotationX=Math.max(-85,Math.min(85,rotationX));lastX=e.clientX;lastY=e.clientY;updateTransform();});
+  document.addEventListener('mouseup',function(){if(isDragging){isDragging=false;scene.classList.remove('dragging');setTimeout(startAutoRotate,3000);}});
+  scene.addEventListener('touchstart',function(e){if(e.touches.length===1){isDragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;stopAutoRotate();e.preventDefault();}},{passive:false});
+  scene.addEventListener('touchmove',function(e){if(!isDragging||e.touches.length!==1)return;rotationY+=(e.touches[0].clientX-lastX)*0.5;rotationX-=(e.touches[0].clientY-lastY)*0.5;rotationX=Math.max(-85,Math.min(85,rotationX));lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;updateTransform();e.preventDefault();},{passive:false});
+  scene.addEventListener('touchend',function(){if(isDragging){isDragging=false;setTimeout(startAutoRotate,3000);}});
+  scene.addEventListener('wheel',function(e){e.preventDefault();zoom+=e.deltaY*-0.001;zoom=Math.max(0.5,Math.min(2,zoom));updateTransform();},{passive:false});
+  function startAutoRotate(){if(autoRotateId||isDragging)return;autoRotate=true;function r(){if(!autoRotate){autoRotateId=null;return;}if(!isDragging){rotationY+=0.25;updateTransform();}autoRotateId=requestAnimationFrame(r);}autoRotateId=requestAnimationFrame(r);}
+  function stopAutoRotate(){autoRotate=false;if(autoRotateId){cancelAnimationFrame(autoRotateId);autoRotateId=null;}}
+  window.setView=function(view){stopAutoRotate();var T={perspective:{rx:-28,ry:35},front:{rx:0,ry:0},top:{rx:-90,ry:0}};var t=T[view]||T.perspective;var srx=rotationX,sry=rotationY,st0=performance.now(),dur=800;function anim(time){var p=Math.min((time-st0)/dur,1),e=1-Math.pow(1-p,3);rotationX=srx+(t.rx-srx)*e;rotationY=sry+(t.ry-sry)*e;updateTransform();if(p<1)requestAnimationFrame(anim);else if(view==='perspective')setTimeout(startAutoRotate,2000);}requestAnimationFrame(anim);document.querySelectorAll('.view-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view===view);});};
+  document.addEventListener('visibilitychange',function(){if(document.hidden)stopAutoRotate();else if(!isDragging)startAutoRotate();});
+  window.buildSVG=buildSVG; window.startAutoRotate=startAutoRotate; window.stopAutoRotate=stopAutoRotate;
+  syncSliders(); buildSVG(); updateTransform(); startAutoRotate();
+  console.log('3D 课件已就绪 ✅');
+})();
+</script>
+<script>
+const revealObserver=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:0.15});
+document.querySelectorAll('.reveal').forEach(el=>revealObserver.observe(el));
+</script>
+<div id="__sd_brand" style="position:fixed;right:10px;bottom:8px;z-index:99999;background:rgba(21,40,90,.88);color:#fff;font-family:'Microsoft YaHei',sans-serif;font-size:11px;line-height:1.4;padding:5px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.25);user-select:none">
+🧮 线性代数 · 3D 课件<br>山东交通学院·理学院·吕秀敏</div></body>
+</html>
