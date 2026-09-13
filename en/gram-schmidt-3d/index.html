@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施密特正交化 · 3D 逐步正交演示</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:320px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .steps{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;line-height:1.8;max-height:200px;overflow-y:auto}
+  .steps .cur{color:var(--amber);font-weight:700}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:14px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:11px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .stepbtn{background:var(--amber);color:#0f172a;border:none;border-radius:16px;padding:6px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;width:100%}
+  .stepbtn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 施密特正交化：β₂ = α₂ − proj<sub>β₁</sub>α₂（减去在已有正交方向的投影）</div>
+
+<div class="panel">
+  <h1>施密特正交化方法</h1>
+  <div class="sub">同济第七版 · 第5章 —— 逐步把三个向量 α₁,α₂,α₃ 变成两两正交的 β₁,β₂,β₃</div>
+  <button class="stepbtn" id="nextBtn">▶ 下一步（开始正交化）</button>
+  <button class="stepbtn" id="resetBtn" style="background:#334155;color:#e2e8f0;margin-top:6px">↺ 重置</button>
+  <div class="result">
+    <div class="big" id="stepname">准备</div>
+    <div class="det" id="stepformula">点击"下一步"开始</div>
+  </div>
+  <div class="steps" id="log"></div>
+  <div class="presets">
+    <button data-p="0">一般位置</button>
+    <button data-p="1">α₂ 接近 α₁</button>
+    <button data-p="2">含垂直向量</button>
+  </div>
+  <div class="hint">💡 核心思想：新向量 βₖ = αₖ 减去它在已有正交向量 β₁..βₖ₋₁ 张成空间上的投影 → 与所有已有向量正交。最后单位化得 eₖ。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#f87171"></span>原向量 α</div>
+  <div><span class="dot" style="background:#4ade80"></span>正交向量 β（逐步生成）</div>
+  <div><span class="dot" style="background:#fbbf24"></span>投影 proj</div>
+  <div><span class="dot" style="background:#60a5fa"></span>单位向量 e</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(5.5, 4, 7.5); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+const axes = new THREE.Group();
+function ax(dir,color){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),dir.clone().multiplyScalar(3.5)]);axes.add(new THREE.Line(g,new THREE.LineBasicMaterial({color})));}
+ax(new THREE.Vector3(1,0,0),0xf87171);ax(new THREE.Vector3(0,1,0),0x4ade80);ax(new THREE.Vector3(0,0,1),0x60a5fa);
+scene.add(axes);
+
+// 向量组
+let ALPHA = [[1,0,0],[1,1,1],[0,1,2]]; // α1,α2,α3
+let state = 0; // 0=init,1=beta1,2=beta2,3=beta3,4=unit
+const arrows = {};
+function mkArrow(){
+  const a = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xffffff, 0.2, 0.12);
+  scene.add(a); return a;
+}
+arrows.a1=mkArrow(); arrows.a2=mkArrow(); arrows.a3=mkArrow();
+arrows.b1=mkArrow(); arrows.b2=mkArrow(); arrows.b3=mkArrow();
+arrows.p1=mkArrow(); arrows.p2=mkArrow(); arrows.p3=mkArrow();
+arrows.e1=mkArrow(); arrows.e2=mkArrow(); arrows.e3=mkArrow();
+
+function setArrow(arrow, v, color){
+  const vec = new THREE.Vector3(v[0],v[1],v[2]);
+  const len = vec.length();
+  if(len<0.02){arrow.visible=false;return;}
+  arrow.visible=true;
+  arrow.setDirection(vec.clone().normalize());
+  arrow.setLength(len, Math.min(0.25,len*0.16), Math.min(0.15,len*0.09));
+  arrow.setColor(new THREE.Color(color));
+}
+function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function proj(a,b){ // b 在 a 上的投影
+  const la=dot(a,a); if(la<1e-9)return [0,0,0];
+  const f=dot(a,b)/la;
+  return [f*a[0],f*a[1],f*a[2]];
+}
+function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+function norm(a){const l=Math.sqrt(dot(a,a));return l<1e-9?a:[a[0]/l,a[1]/l,a[2]/l];}
+
+function clearAll(){
+  Object.keys(arrows).forEach(k=>arrows[k].visible=false);
+}
+function update(){
+  const [a1,a2,a3]=ALPHA;
+  clearAll();
+  setArrow(arrows.a1,a1,0xf87171);setArrow(arrows.a2,a2,0xf87171);setArrow(arrows.a3,a3,0xf87171);
+  // 计算正交化结果（按当前 state 显示）
+  const b1=a1.slice();
+  const p2=proj(b1,a2); const b2=sub(a2,p2);
+  const p3a=proj(b1,a3); const p3b=proj(b2,a3); const b3=sub(a3,[p3a[0]+p3b[0],p3a[1]+p3b[1],p3a[2]+p3b[2]]);
+  const e1=norm(b1),e2=norm(b2),e3=norm(b3);
+  const el=document.getElementById('stepname'), fm=document.getElementById('stepformula');
+  if(state>=1){setArrow(arrows.b1,b1,0x4ade80);}
+  if(state>=2){setArrow(arrows.b2,b2,0x4ade80);setArrow(arrows.p2,p2,0xfbbf24);}
+  if(state>=3){setArrow(arrows.b3,b3,0x4ade80);setArrow(arrows.p3,[p3a[0]+p3b[0],p3a[1]+p3b[1],p3a[2]+p3b[2]],0xfbbf24);}
+  if(state>=4){
+    setArrow(arrows.e1,e1,0x60a5fa);setArrow(arrows.e2,e2,0x60a5fa);setArrow(arrows.e3,e3,0x60a5fa);
+  }
+  const log=document.getElementById('log');
+  let h='<div>α₁=('+a1.map(x=>x.toFixed(1))+') α₂=('+a2.map(x=>x.toFixed(1))+') α₃=('+a3.map(x=>x.toFixed(1))+')</div>';
+  if(state>=1){h+='<div class="cur">β₁ = α₁ = ('+b1.map(x=>x.toFixed(2))+')</div>';}
+  if(state>=2){
+    h+='<div>proj<sub>β₁</sub>α₂ = ('+p2.map(x=>x.toFixed(2))+')</div>';
+    h+='<div class="cur">β₂ = α₂ − proj = ('+b2.map(x=>x.toFixed(2))+')</div>';
+  }
+  if(state>=3){
+    h+='<div>proj 合计 = ('+(p3a[0]+p3b[0]).toFixed(2)+','+(p3a[1]+p3b[1]).toFixed(2)+','+(p3a[2]+p3b[2]).toFixed(2)+')</div>';
+    h+='<div class="cur">β₃ = α₃ − 投影 = ('+b3.map(x=>x.toFixed(2))+')</div>';
+  }
+  if(state>=4){
+    h+='<div class="cur">单位化：e₁=('+e1.map(x=>x.toFixed(2))+') e₂=('+e2.map(x=>x.toFixed(2))+') e₃=('+e3.map(x=>x.toFixed(2))+')</div>';
+    h+='<div class="cur">✅ 两两正交：β₁·β₂='+dot(b1,b2).toFixed(3)+', β₁·β₃='+dot(b1,b3).toFixed(3)+', β₂·β₃='+dot(b2,b3).toFixed(3)+'</div>';
+  }
+  log.innerHTML=h;
+  // 按钮状态
+  const nb=document.getElementById('nextBtn');
+  nb.disabled = state>=4;
+  nb.textContent = state>=4?'✅ 已完成正交化+单位化':'▶ 下一步';
+  el.textContent = ['准备','① β₁ = α₁','② β₂ = α₂ − proj₁','③ β₃ = α₃ − proj₁ − proj₂','④ 单位化 e = β/|β|'][state];
+  fm.textContent = state===1?'β₁ 直接取 α₁（首个向量无需减去投影）':state===2?'β₂ = α₂ − (α₂·β₁/β₁·β₁)·β₁':state===3?'β₃ = α₃ − proj<sub>β₁</sub>α₃ − proj<sub>β₂</sub>α₃':state===4?'eₖ = βₖ / |βₖ|（单位正交基）':'点击下一步';
+}
+document.getElementById('nextBtn').addEventListener('click',()=>{if(state<4)state++;update();});
+document.getElementById('resetBtn').addEventListener('click',()=>{state=0;update();});
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button');if(!b)return;
+  const p=b.dataset.p;
+  if(p==='0')ALPHA=[[1,0,0],[1,1,1],[0,1,2]];
+  else if(p==='1')ALPHA=[[1,0,0],[1.2,0.1,0.1],[0,1,2]];
+  else ALPHA=[[1,0,0],[0,1,0],[0,0,2]];
+  state=0;update();
+});
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+update();animate();
+</script>
+</body>
+</html>
