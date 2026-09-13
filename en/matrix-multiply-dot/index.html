@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩阵的乘法 · 点积过程</title>
+<style>
+  :root{--bg:#f7f9fc;--card:#fff;--ink:#1f2937;--mut:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#16a34a;--line:#e5e7eb}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);padding:20px;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto}
+  h1{font-size:21px;margin-bottom:4px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .matrix-input{display:grid;gap:6px;justify-content:center;margin:8px 0}
+  .matrix-input input{width:54px;height:36px;text-align:center;border:1px solid var(--line);border-radius:6px;font-family:Consolas,monospace;font-size:14px;background:#fff}
+  .matrix-input input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .result{background:#f0f6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-top:10px}
+  .result .big{font-size:17px;font-weight:700;color:var(--accent);margin-bottom:4px}
+  .result .det{font-size:13px;color:#1e40af}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#fff;border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:13px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .steps{font-family:Consolas,monospace;font-size:13px;margin-top:8px;line-height:1.8}
+  .steps .s{color:#374151}
+  .tip{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:13px;color:#1e40af;margin-top:12px}
+  .sliders{margin:10px 0}
+  .sliders .row{display:grid;grid-template-columns:80px 1fr 44px;align-items:center;gap:10px;margin:5px 0}
+  .sliders .row label{font-size:13px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;text-align:center;margin-top:18px}
+  .ok{color:var(--green);font-weight:700}.bad{color:var(--red);font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>矩阵的乘法 · 点积过程</h1>
+  <div class="sub">同济第七版 · 第2章 —— 修改 A、B 矩阵，观察 C=A×B 的每个元素如何由点积算出</div>
+
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px">矩阵 A (m×n)</div>
+        <div class="matrix-input" id="mA" style="grid-template-columns:repeat(3,54px)">
+          <input data-a="0,0" value="1"><input data-a="0,1" value="2"><input data-a="0,2" value="3">
+          <input data-a="1,0" value="0"><input data-a="1,1" value="1"><input data-a="1,2" value="4">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px">矩阵 B (n×p)</div>
+        <div class="matrix-input" id="mB" style="grid-template-columns:repeat(2,54px)">
+          <input data-b="0,0" value="2"><input data-b="0,1" value="0">
+          <input data-b="1,0" value="1"><input data-b="1,1" value="3">
+          <input data-b="2,0" value="0"><input data-b="2,1" value="1">
+        </div>
+      </div>
+    </div>
+    <div class="result">
+      <div class="big">A×B = <span id="ab"></span></div>
+      <div class="det" id="abdetail">点积：C[i][j] = Σ A[i][k]×B[k][j]</div>
+    </div>
+    <div class="presets">
+      <button data-p="0">2×3 乘 3×2</button>
+      <button data-p="1">不可乘演示</button>
+      <button data-p="2">单位矩阵</button>
+    </div>
+    <div class="tip">💡 矩阵乘法：A 的列数必须等于 B 的行数。C[i][j] 是 A 的第 i 行与 B 的第 j 列的点积。乘法不满足交换律（AB ≠ BA）。</div>
+  </div>
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px">点积动画：C[i][j] 的计算过程</div>
+    <div class="steps" id="dotsteps">点击上方预设或修改矩阵查看</div>
+  </div>
+  <div class="foot">线性代数教学智能体 · TF2 可视化 · 矩阵的乘法</div>
+</div>
+<script>
+
+const mA = [[1,2,3],[0,1,4]], mB = [[2,0],[1,3],[0,1]];
+function setA(v){ for(let i=0;i<2;i++)for(let j=0;j<3;j++) mA[i][j]=v[i][j]; syncInputs(); calc(); }
+function setB(v){ for(let i=0;i<3;i++)for(let j=0;j<2;j++) mB[i][j]=v[i][j]; syncInputs(); calc(); }
+function syncInputs(){
+  document.querySelectorAll('#mA input').forEach(inp=>{ const [i,j]=inp.dataset.a.split(',').map(Number); inp.value=mA[i][j]; });
+  document.querySelectorAll('#mB input').forEach(inp=>{ const [i,j]=inp.dataset.b.split(',').map(Number); inp.value=mB[i][j]; });
+}
+function calc(){
+  const rowsA=mA.length, colsA=mA[0].length, rowsB=mB.length, colsB=mB[0].length;
+  const el=document.getElementById('ab'), det=document.getElementById('abdetail'), st=document.getElementById('dotsteps');
+  if(colsA!==rowsB){ el.textContent='不可乘'; el.className='bad'; det.textContent='A 的列数('+colsA+') ≠ B 的行数('+rowsB+') → 无法相乘'; st.innerHTML=''; return; }
+  el.className='';
+  const C=Array.from({length:rowsA},()=>Array(colsB).fill(0));
+  let html='';
+  for(let i=0;i<rowsA;i++)for(let j=0;j<colsB;j++){
+    let sum=0, terms=[];
+    for(let k=0;k<colsA;k++){ const p=mA[i][k]*mB[k][j]; sum+=p; terms.push(mA[i][k]+'×'+mB[k][j]); }
+    C[i][j]=sum;
+    html+='<div class="s">C['+i+']['+j+'] = '+terms.join(' + ')+' = <b>'+sum+'</b></div>';
+  }
+  el.textContent=JSON.stringify(C).replace(/,/g,', ');
+  det.textContent='C['+rowsA+'×'+colsB+']，点积计算如下：';
+  st.innerHTML=html;
+}
+document.querySelectorAll('#mA input').forEach(inp=>inp.addEventListener('input',()=>{const[i,j]=inp.dataset.a.split(',').map(Number);mA[i][j]=parseFloat(inp.value)||0;calc();}));
+document.querySelectorAll('#mB input').forEach(inp=>inp.addEventListener('input',()=>{const[i,j]=inp.dataset.b.split(',').map(Number);mB[i][j]=parseFloat(inp.value)||0;calc();}));
+const presets={
+  0:[[[1,2,3],[0,1,4]],[[2,0],[1,3],[0,1]]],
+  1:[[[1,2],[3,4]],[[1,2,3]]],
+  2:[[[2,3,1],[0,5,2]],[[1,0],[0,1],[0,0]]]
+};
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button'); if(!b)return;
+  const p=presets[b.dataset.p]; setA(p[0]); setB(p[1]);
+});
+syncInputs(); calc();
+</script>
+</body>
+</html>
