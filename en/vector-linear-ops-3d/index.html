@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>向量的线性运算 · 3D 向量加法与数乘</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:310px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .vec{margin-bottom:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .vec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+  .vec-name{font-size:13px;font-weight:600}
+  .vec .row{display:grid;grid-template-columns:24px 1fr 34px;align-items:center;gap:6px;margin:2px 0}
+  .vec .row label{font-size:11px;color:var(--mut);text-align:right}
+  .vec input[type=range]{width:100%;accent-color:var(--accent)}
+  .vec .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .sliders{margin:8px 0}
+  .sliders .row{display:grid;grid-template-columns:60px 1fr 44px;align-items:center;gap:8px;margin:4px 0}
+  .sliders .row label{font-size:12px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--amber)}
+  .sliders .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:15px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .c1{background:#f87171}.c2{background:#4ade80}.c3{background:#fbbf24}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .mode-btn{background:#0f172a;border:1px solid var(--amber);color:var(--amber);border-radius:16px;padding:5px 14px;font-size:12px;cursor:pointer;margin-top:8px;width:100%}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 向量加法 = 平行四边形对角线 · 数乘 = 沿方向伸缩</div>
+
+<div class="panel">
+  <h1>向量的线性运算</h1>
+  <div class="sub">同济第七版 · 第4章 —— 加法（平行四边形法则）与数乘（伸缩）的 3D 演示</div>
+
+  <div class="vec">
+    <div class="vec-head"><span class="vec-name" style="color:#f87171">向量 u</span></div>
+    <div class="row"><label>x</label><input type="range" id="u0" min="-3" max="3" step="0.1" value="2"><span class="num" id="un0">2</span></div>
+    <div class="row"><label>y</label><input type="range" id="u1" min="-3" max="3" step="0.1" value="1"><span class="num" id="un1">1</span></div>
+    <div class="row"><label>z</label><input type="range" id="u2" min="-3" max="3" step="0.1" value="0"><span class="num" id="un2">0</span></div>
+  </div>
+  <div class="vec">
+    <div class="vec-head"><span class="vec-name" style="color:#4ade80">向量 v</span></div>
+    <div class="row"><label>x</label><input type="range" id="v0" min="-3" max="3" step="0.1" value="1"><span class="num" id="vn0">1</span></div>
+    <div class="row"><label>y</label><input type="range" id="v1" min="-3" max="3" step="0.1" value="2"><span class="num" id="vn1">2</span></div>
+    <div class="row"><label>z</label><input type="range" id="v2" min="-3" max="3" step="0.1" value="1"><span class="num" id="vn2">1</span></div>
+  </div>
+
+  <div class="sliders">
+    <div class="row"><label>数乘 k×u</label><input type="range" id="k" min="-2" max="2" step="0.1" value="1.5"><span class="num" id="kn">1.5</span></div>
+  </div>
+
+  <button class="mode-btn" id="modeBtn">当前：加法模式 → 切换为数乘</button>
+
+  <div class="result">
+    <div class="big" id="res">u + v = (3, 3, 1)</div>
+    <div class="det" id="detail">平行四边形对角线</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">加法演示</button>
+    <button data-p="1">u+v 垂直</button>
+    <button data-p="2">u=-v（抵消）</button>
+  </div>
+  <div class="hint">💡 u+v：把 v 的起点移到 u 的终点，从 u 起点指向 v 终点 = 对角线。k×u：k&gt;0 同向伸缩，k&lt;0 反向，k=0 为零向量。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot c1"></span>向量 <b>u</b></div>
+  <div><span class="dot c2"></span>向量 <b>v</b></div>
+  <div><span class="dot c3"></span>结果（u+v 或 k×u）</div>
+  <div style="color:var(--mut)">虚线 = 平行四边形边</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 4.5, 7); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(9, 9, 0x334155, 0x1e293b));
+const axes = new THREE.Group();
+function ax(dir,color){const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),dir.clone().multiplyScalar(4)]);axes.add(new THREE.Line(g,new THREE.LineBasicMaterial({color})));}
+ax(new THREE.Vector3(1,0,0),0xf87171);ax(new THREE.Vector3(0,1,0),0x4ade80);ax(new THREE.Vector3(0,0,1),0x60a5fa);
+scene.add(axes);
+
+const U = [2,1,0], V = [1,2,1];
+let mode = 'add'; // add | scale
+
+function mkArrow(color){
+  const a = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, color, 0.25, 0.15);
+  scene.add(a); return a;
+}
+const arrU = mkArrow(0xf87171), arrV = mkArrow(0x4ade80), arrR = mkArrow(0xfbbf24);
+
+// 虚线（平行四边形边）
+const dashMat = new THREE.LineDashedMaterial({ color: 0x64748b, dashSize: 0.15, gapSize: 0.1 });
+const dashGeo = new THREE.BufferGeometry();
+const dashLine = new THREE.Line(dashGeo, dashMat);
+scene.add(dashLine);
+
+function setArrow(arrow, v, color){
+  const vec = new THREE.Vector3(v[0], v[1], v[2]);
+  const len = vec.length();
+  if(len < 0.02){ arrow.visible = false; return; }
+  arrow.visible = true;
+  arrow.setDirection(vec.clone().normalize());
+  arrow.setLength(len, Math.min(0.3, len*0.18), Math.min(0.18, len*0.1));
+  arrow.setColor(new THREE.Color(color));
+}
+
+function update(){
+  const u = [parseFloat(document.getElementById('u0').value), parseFloat(document.getElementById('u1').value), parseFloat(document.getElementById('u2').value)];
+  const v = [parseFloat(document.getElementById('v0').value), parseFloat(document.getElementById('v1').value), parseFloat(document.getElementById('v2').value)];
+  const k = parseFloat(document.getElementById('k').value);
+  ['u0','u1','u2'].forEach((id,i)=>document.getElementById('un'+i).textContent=u[i].toFixed(1));
+  ['v0','v1','v2'].forEach((id,i)=>document.getElementById('vn'+i).textContent=v[i].toFixed(1));
+  document.getElementById('kn').textContent=k.toFixed(1);
+
+  setArrow(arrU, u, 0xf87171);
+  const el=document.getElementById('res'), det=document.getElementById('detail');
+  if(mode==='add'){
+    setArrow(arrV, v, 0x4ade80);
+    const r = [u[0]+v[0], u[1]+v[1], u[2]+v[2]];
+    setArrow(arrR, r, 0xfbbf24);
+    el.textContent='u + v = ('+r.map(x=>Math.round(x*10)/10).join(', ')+')';
+    det.textContent='|u|='+len(u).toFixed(2)+', |v|='+len(v).toFixed(2)+', |u+v|='+len(r).toFixed(2)+(len(r)>Math.max(len(u),len(v))-0.01?'（三角形不等式成立）':'');
+    // 虚线：u→u+v 和 v→u+v（平行四边形两条边）
+    const pts=[];
+    pts.push(new THREE.Vector3(u[0],u[1],u[2]), new THREE.Vector3(r[0],r[1],r[2]));
+    pts.push(new THREE.Vector3(v[0],v[1],v[2]), new THREE.Vector3(r[0],r[1],r[2]));
+    dashGeo.setFromPoints(pts);
+    dashLine.visible=true;
+  } else {
+    setArrow(arrV, [0,0,0], 0x4ade80); arrV.visible=false;
+    const r = [k*u[0], k*u[1], k*u[2]];
+    setArrow(arrR, r, 0xfbbf24);
+    el.textContent='k×u = ('+r.map(x=>Math.round(x*10)/10).join(', ')+')';
+    det.textContent='k='+k.toFixed(1)+'：'+(k>1?'同向拉伸 '+(k.toFixed(1))+' 倍':(k>0?'同向压缩 '+k.toFixed(1)+' 倍':(k<0?'反向'+Math.abs(k).toFixed(1)+' 倍':'零向量')));
+    dashLine.visible=false;
+  }
+}
+function len(v){return Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);}
+
+['u0','u1','u2','v0','v1','v2','k'].forEach(id=>document.getElementById(id).addEventListener('input',update));
+
+document.getElementById('modeBtn').addEventListener('click',function(){
+  mode = mode==='add'?'scale':'add';
+  this.textContent = mode==='add'?'当前：加法模式 → 切换为数乘':'当前：数乘模式 → 切换为加法';
+  update();
+});
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button'); if(!b)return;
+  const p=b.dataset.p;
+  if(p==='0'){document.getElementById('u0').value=2;document.getElementById('u1').value=1;document.getElementById('u2').value=0;document.getElementById('v0').value=1;document.getElementById('v1').value=2;document.getElementById('v2').value=1;document.getElementById('k').value=1.5;}
+  else if(p==='1'){document.getElementById('u0').value=2;document.getElementById('u1').value=0;document.getElementById('u2').value=0;document.getElementById('v0').value=0;document.getElementById('v1').value=2;document.getElementById('v2').value=0;document.getElementById('k').value=1;}
+  else {document.getElementById('u0').value=2;document.getElementById('u1').value=0;document.getElementById('u2').value=0;document.getElementById('v0').value=-2;document.getElementById('v1').value=0;document.getElementById('v2').value=0;document.getElementById('k').value=1;}
+  update();
+});
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+update();animate();
+</script>
+</body>
+</html>
