@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>向量空间的基·维数·坐标 · 3D 分解</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:310px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .sliders{margin:8px 0}
+  .sliders .row{display:grid;grid-template-columns:60px 1fr 40px;align-items:center;gap:8px;margin:4px 0}
+  .sliders .row label{font-size:12px;color:var(--mut);text-align:right}
+  .sliders input[type=range]{width:100%;accent-color:var(--accent)}
+  .sliders .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .basis-box{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0}
+  .basis-box .title{font-size:12px;color:var(--mut);margin-bottom:4px}
+  .basis-box .row{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+  .basis-box input{width:100%;background:#0b1220;border:1px solid var(--line);border-radius:5px;color:var(--ink);padding:4px;text-align:center;font-family:Consolas,monospace;font-size:12px}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px}
+  .result .big{font-size:14px;font-weight:700;margin-bottom:2px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer}
+  .presets button:hover{border-color:var(--amber);color:var(--amber)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+<div class="title-top">🔭 拖动旋转 | 基 = 线性无关且张成空间的向量组 · 维数 = 基中向量个数 · 坐标 = 在基下的分解系数</div>
+
+<div class="panel">
+  <h1>向量空间的基·维数·坐标</h1>
+  <div class="sub">同济第七版 · 第4章 —— 标准基 e₁,e₂,e₃ 下的向量 x，坐标为 (x₁,x₂,x₃)</div>
+
+  <div class="sliders">
+    <div class="row"><label>x₁</label><input type="range" id="x0" min="-3" max="3" step="0.1" value="2"><span class="num" id="xn0">2</span></div>
+    <div class="row"><label>x₂</label><input type="range" id="x1" min="-3" max="3" step="0.1" value="1"><span class="num" id="xn1">1</span></div>
+    <div class="row"><label>x₃</label><input type="range" id="x2" min="-3" max="3" step="0.1" value="1"><span class="num" id="xn2">1</span></div>
+  </div>
+
+  <div class="result">
+    <div class="big" id="coord">x = 2e₁ + 1e₂ + 1e₃</div>
+    <div class="det" id="detail">坐标 = (2, 1, 1)，维数 dim = 3</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">标准基（3维）</button>
+    <button data-p="1">旋转基（仍3维）</button>
+    <button data-p="2">退化基（2维，相关）</button>
+  </div>
+  <div class="hint">💡 基的两条件：① 线性无关；② 能张成整个空间（V 中每个向量都可唯一表示为基的线性组合）。坐标就是组合系数。dim(V) = 基中向量个数。R³ 的标准基 e₁=(1,0,0),e₂=(0,1,0),e₃=(0,0,1)。</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#f87171"></span>基向量（红/绿/蓝）</div>
+  <div><span class="dot" style="background:#fbbf24"></span>向量 x = Σ xᵢ·基ᵢ</div>
+  <div style="color:var(--mut)">金色细线 = 沿各基方向的分量</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 4, 7.5); camera.lookAt(0,0,0);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+scene.add(new THREE.GridHelper(8, 8, 0x334155, 0x1e293b));
+
+const cols=[0xf87171,0x4ade80,0x60a5fa];
+const basisArrows=[];
+for(let i=0;i<3;i++){const a=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(0,0,0),1,cols[i],0.2,0.12);scene.add(a);basisArrows.push(a);}
+const xArrow=new THREE.ArrowHelper(new THREE.Vector3(1,0,0),new THREE.Vector3(0,0,0),1,0xfbbf24,0.3,0.18);
+scene.add(xArrow);
+const compLines=new THREE.Group();scene.add(compLines);
+
+let BASIS=[[1,0,0],[0,1,0],[0,0,1]]; // 基向量（列）
+function setArrow(arrow,v,color){
+  const vec=new THREE.Vector3(v[0],v[1],v[2]),len=vec.length();
+  if(len<0.02){arrow.visible=false;return;}
+  arrow.visible=true;arrow.setDirection(vec.clone().normalize());
+  arrow.setLength(len,Math.min(0.28,len*0.16),Math.min(0.16,len*0.09));
+  if(color)arrow.setColor(new THREE.Color(color));
+}
+function det3(M){return M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);}
+function update(){
+  const x=[parseFloat(document.getElementById('x0').value),parseFloat(document.getElementById('x1').value),parseFloat(document.getElementById('x2').value)];
+  ['x0','x1','x2'].forEach((id,i)=>document.getElementById('xn'+i).textContent=x[i].toFixed(1));
+  const d=det3(BASIS);
+  // 坐标：标准基下就是分量
+  document.getElementById('coord').textContent='x = '+x.map((v,i)=>v.toFixed(1)+'e'+(i+1)).join(' + ');
+  document.getElementById('detail').textContent='坐标 = ('+x.map(v=>v.toFixed(1)).join(', ')+') | dim = '+(Math.abs(d)>1e-6?3:2)+' | det(基矩阵)='+d.toFixed(2);
+  // 基向量
+  for(let i=0;i<3;i++){setArrow(basisArrows[i],BASIS[i]);}
+  // x 向量（标准坐标）
+  setArrow(xArrow,x);
+  // 分量线
+  while(compLines.children.length)compLines.remove(compLines.children[0]);
+  const pts=[];
+  for(let i=0;i<3;i++){
+    const comp=[BASIS[0][i]*x[i],BASIS[1][i]*x[i],BASIS[2][i]*x[i]];
+    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(comp[0],comp[1],comp[2])]);
+    const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xfbbf24,transparent:true,opacity:0.4}));
+    compLines.add(l);
+  }
+}
+['x0','x1','x2'].forEach(id=>document.getElementById(id).addEventListener('input',update));
+document.querySelector('.presets').addEventListener('click',function(e){
+  const b=e.target.closest('button');if(!b)return;
+  const rad=Math.PI/6,c=Math.cos(rad),s=Math.sin(rad);
+  if(b.dataset.p==='0')BASIS=[[1,0,0],[0,1,0],[0,0,1]];
+  else if(b.dataset.p==='1')BASIS=[[c,-s,0],[s,c,0],[0,0,1]];
+  else BASIS=[[1,0,0],[0,1,0],[1,1,0]];
+  update();
+});
+function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+update();animate();
+</script>
+</body>
+</html>

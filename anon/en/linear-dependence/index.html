@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>向量组的线性相关性 · 三维可视化</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#e2e8f0;--mut:#94a3b8;--accent:#3b82f6;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;--line:#334155}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6;overflow:hidden}
+  #canvas3d{position:fixed;top:0;left:0;width:100%;height:100%;display:block}
+  .panel{position:fixed;top:16px;right:16px;width:300px;background:rgba(30,41,59,.92);border:1px solid var(--line);border-radius:12px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:10;max-height:calc(100vh - 32px);overflow-y:auto}
+  h1{font-size:17px;margin-bottom:2px}
+  .sub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .vec{margin-bottom:10px;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .vec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .vec-name{font-size:13px;font-weight:600}
+  .vec-tag{font-size:11px;padding:1px 8px;border-radius:10px}
+  .vec .row{display:grid;grid-template-columns:26px 1fr 34px;align-items:center;gap:6px;margin:3px 0}
+  .vec .row label{font-size:11px;color:var(--mut);text-align:right}
+  .vec input[type=range]{width:100%;accent-color:var(--accent)}
+  .vec .num{font-family:Consolas,monospace;font-size:12px;text-align:right}
+  .result{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:6px}
+  .result .big{font-size:15px;font-weight:700;margin-bottom:4px}
+  .result .det{font-size:12px;color:var(--mut)}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .presets button{background:#0f172a;border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:4px 12px;font-size:12px;cursor:pointer;transition:all .15s}
+  .presets button:hover{border-color:var(--accent);color:var(--accent)}
+  .hint{font-size:11px;color:var(--mut);margin-top:10px}
+  .legend{position:fixed;bottom:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:12px;z-index:10}
+  .legend div{margin:2px 0}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+  .c1{background:#f87171}.c2{background:#4ade80}.c3{background:#60a5fa}
+  .title-top{position:fixed;top:16px;left:16px;background:rgba(30,41,59,.85);border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;z-index:10}
+  .tag-indep{color:var(--green)}.tag-dep{color:var(--red)}
+</style>
+</head>
+<body>
+<div id="canvas3d"></div>
+
+<div class="title-top">🔭 拖动旋转 · 滚轮缩放 | 向量组的线性相关性（3D）</div>
+
+<div class="panel">
+  <h1>向量组的线性相关性</h1>
+  <div class="sub">同济第七版 · 第4章 —— 调整三个三维向量的分量，观察其几何关系与线性相关性</div>
+
+  <div id="vecs"></div>
+
+  <div class="result">
+    <div class="big" id="verdict">线性无关</div>
+    <div class="det" id="detinfo">det[v₁ v₂ v₃] = 4.0 ≠ 0 → 三向量线性无关</div>
+  </div>
+
+  <div class="presets">
+    <button data-p="0">无关（一般位置）</button>
+    <button data-p="1">三向量共面</button>
+    <button data-p="2">两向量共线 + 第三独立</button>
+    <button data-p="3">三向量共线</button>
+    <button data-p="4">v₃ = v₁ + v₂</button>
+  </div>
+  <div class="hint">💡 相关 ⇔ 行列式 = 0 ⇔ 三向量落在同一平面/直线/点上 ⇔ 存在不全为零的系数使其线性组合为零向量</div>
+</div>
+
+<div class="legend">
+  <div><span class="dot c1"></span>向量 <b>v₁</b></div>
+  <div><span class="dot c2"></span>向量 <b>v₂</b></div>
+  <div><span class="dot c3"></span>向量 <b>v₃</b></div>
+  <div style="color:var(--mut)">半透明面 = v₁,v₂ 张成的平面</div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script>
+// ================= Three.js 场景 =================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f172a);
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(6, 5, 8);
+camera.lookAt(0,0,0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.getElementById('canvas3d').appendChild(renderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.15;
+
+// 灯光
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 8, 6);
+scene.add(dirLight);
+
+// 坐标轴
+const axisLen = 4.5;
+const axes = new THREE.Group();
+function makeAxis(dir, color){
+  const mat = new THREE.LineBasicMaterial({ color });
+  const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), dir.clone().multiplyScalar(axisLen)]);
+  axes.add(new THREE.Line(geo, mat));
+}
+makeAxis(new THREE.Vector3(1,0,0), 0xf87171);
+makeAxis(new THREE.Vector3(0,1,0), 0x4ade80);
+makeAxis(new THREE.Vector3(0,0,1), 0x60a5fa);
+// 网格
+const grid = new THREE.GridHelper(10, 10, 0x334155, 0x1e293b);
+scene.add(grid);
+scene.add(axes);
+
+// ================= 向量箭头 =================
+const vecColors = [0xf87171, 0x4ade80, 0x60a5fa];
+const vecNames = ['v₁','v₂','v₃'];
+const arrows = [];
+
+function makeArrow(){
+  const arrow = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xffffff, 0.25, 0.15);
+  scene.add(arrow);
+  return arrow;
+}
+for(let i=0;i<3;i++) arrows.push(makeArrow());
+
+// 张成平面（v1,v2 的 span）
+const planeMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(8, 8),
+  new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false })
+);
+scene.add(planeMesh);
+
+// 端点小球
+const dots = [];
+for(let i=0;i<3;i++){
+  const d = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshBasicMaterial({ color: vecColors[i] }));
+  scene.add(d);
+  dots.push(d);
+}
+
+// ================= 向量数据 =================
+let V = [
+  [2, 0, 0],
+  [0, 3, 0],
+  [1, 1, 1]
+];
+
+// ================= 滑块渲染 =================
+const vEl = document.getElementById('vecs');
+function renderSliders(){
+  vEl.innerHTML = '';
+  for(let i=0;i<3;i++){
+    const box = document.createElement('div');
+    box.className = 'vec';
+    box.innerHTML = '<div class="vec-head"><span class="vec-name" style="color:'+cssColor(vecColors[i])+'">'+vecNames[i]+'</span><span class="vec-tag" id="tag'+i+'"></span></div>';
+    const comps = ['x','y','z'];
+    for(let c=0;c<3;c++){
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = '<label>'+comps[c]+'</label><input type="range" min="-4" max="4" step="0.1" value="'+V[i][c]+'"><span class="num" id="n'+i+''+c+'">'+V[i][c]+'</span>';
+      const range = row.querySelector('input');
+      range.addEventListener('input', function(){
+        V[i][c] = parseFloat(range.value);
+        row.querySelector('.num').textContent = V[i][c].toFixed(1);
+        update();
+      });
+      box.appendChild(row);
+    }
+    vEl.appendChild(box);
+  }
+}
+
+function cssColor(hex){ return '#'+hex.toString(16).padStart(6,'0'); }
+
+// ================= 行列式（三阶）=================
+function det3(m){
+  return m[0][0]*(m[1][1]*m[2][2]-m[1][2]*m[2][1])
+       - m[0][1]*(m[1][0]*m[2][2]-m[1][2]*m[2][0])
+       + m[0][2]*(m[1][0]*m[2][1]-m[1][1]*m[2][0]);
+}
+
+// 判断 v1,v2 是否共线（叉积≈0）
+function collinear(a,b){
+  const cx = a[1]*b[2]-a[2]*b[1], cy = a[2]*b[0]-a[0]*b[2], cz = a[0]*b[1]-a[1]*b[0];
+  return Math.abs(cx)<1e-6 && Math.abs(cy)<1e-6 && Math.abs(cz)<1e-6;
+}
+function isZero(v){ return Math.abs(v[0])<1e-6 && Math.abs(v[1])<1e-6 && Math.abs(v[2])<1e-6; }
+
+// ================= 主更新 =================
+function update(){
+  const d = det3(V);
+  const zero = isZero(V[0]) && isZero(V[1]) && isZero(V[2]);
+  const v1v2col = collinear(V[0], V[1]);
+  const v12zero = isZero(V[0]) || isZero(V[1]);
+
+  let verdict, cls, detail, planeMode;
+  if (zero){ verdict = '三向量全为零'; cls = 'dep'; detail = '全为零向量 → 线性相关'; planeMode = 'none'; }
+  else if (Math.abs(d) > 1e-6){ verdict = '线性无关'; cls = 'indep'; detail = 'det[v₁ v₂ v₃] = '+d.toFixed(2)+' ≠ 0 → 张成整个三维空间'; planeMode = 'plane'; }
+  else if (v12zero || v1v2col){
+    if (v12zero || v1v2col){ verdict = '线性相关（共线/含零向量）'; cls = 'dep'; detail = 'det = 0，且 v₁,v₂ 共线（或含零向量）→ 至多张成一条直线/平面'; planeMode = 'line'; }
+    else { verdict = '线性相关'; cls = 'dep'; detail = 'det = 0 → 三向量共面'; planeMode = 'plane'; }
+  }
+  else {
+    // det=0 但 v1,v2 不共线 → 三向量共面（v3 在 v1,v2 平面上）
+    verdict = '线性相关（三向量共面）'; cls = 'dep'; detail = 'det = 0，v₃ 落在 v₁,v₂ 张成的平面上 → 共面相关'; planeMode = 'plane';
+  }
+
+  const vEl = document.getElementById('verdict');
+  vEl.textContent = verdict;
+  vEl.className = 'big '+(cls==='indep'?'tag-indep':'tag-dep');
+  document.getElementById('detinfo').textContent = detail;
+
+  // 更新 3D 箭头 + 小球
+  for(let i=0;i<3;i++){
+    const v = new THREE.Vector3(V[i][0], V[i][1], V[i][2]);
+    const len = v.length();
+    if(len < 0.001){
+      arrows[i].visible = false; dots[i].visible = false;
+    } else {
+      arrows[i].visible = true; dots[i].visible = true;
+      arrows[i].setDirection(v.clone().normalize());
+      arrows[i].setLength(len, Math.min(0.35, len*0.2), Math.min(0.2, len*0.12));
+      arrows[i].setColor(new THREE.Color(vecColors[i]));
+      dots[i].position.copy(v);
+    }
+  }
+
+  // 张成平面：v1,v2 法向
+  if(planeMode === 'plane' && !isZero(V[0]) && !isZero(V[1]) && !v1v2col){
+    const n = new THREE.Vector3().crossVectors(
+      new THREE.Vector3(...V[0]), new THREE.Vector3(...V[1])).normalize();
+    planeMesh.visible = true;
+    planeMesh.lookAt(n);
+  } else {
+    planeMesh.visible = false;
+  }
+
+  // 标签
+  for(let i=0;i<3;i++){
+    const t = document.getElementById('tag'+i);
+    if(isZero(V[i])){ t.textContent='零向量'; t.className='vec-tag tag-dep'; }
+    else { t.textContent=''; t.className='vec-tag'; }
+  }
+}
+
+// ================= 预设 =================
+const presets = {
+  0: [[2,0,0],[0,3,0],[1,1,1]],
+  1: [[2,1,0],[-1,2,0],[1,1,0]],       // 全在 xy 平面
+  2: [[1,0,0],[2,0,0],[0,1,1]],        // v1,v2 共线
+  3: [[1,1,0],[2,2,0],[3,3,0]],        // 三向量共线
+  4: [[2,1,0],[1,3,0],[3,4,0]],        // v3 = v1 + v2
+};
+document.querySelector('.presets').addEventListener('click', function(e){
+  const b = e.target.closest('button');
+  if(!b) return;
+  V = presets[b.dataset.p].map(r=>r.slice());
+  // 同步滑块
+  const ranges = document.querySelectorAll('#vecs input[type=range]');
+  let idx = 0;
+  for(let i=0;i<3;i++)for(let c=0;c<3;c++){
+    ranges[idx].value = V[i][c];
+    ranges[idx].parentElement.querySelector('.num').textContent = V[i][c].toFixed(1);
+    idx++;
+  }
+  update();
+});
+
+// ================= 动画循环 =================
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+window.addEventListener('resize', function(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+renderSliders();
+update();
+animate();
+</script>
+</body>
+</html>
